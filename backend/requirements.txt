@@ -11,3 +11,6 @@ bcrypt
 sqlalchemy
 psycopg2-binary
 anyio
+exifread
+ffmpeg-python
+geopy

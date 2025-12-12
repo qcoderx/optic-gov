@@ -3,7 +3,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 import os
+from dotenv import load_dotenv
 
+load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/optic_gov")
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -30,6 +32,9 @@ class Project(Base):
     contractor_id = Column(Integer, ForeignKey("contractors.id"))
     gov_wallet = Column(String)
     ai_generated = Column(Boolean, default=False)
+    project_latitude = Column(Float)
+    project_longitude = Column(Float)
+    location_tolerance_km = Column(Float, default=1.0)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     milestones = relationship("Milestone", back_populates="project")
