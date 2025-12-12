@@ -1,0 +1,36 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "contracts/OpticGov.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.0;\n\ncontract OpticGov {\n    // --- Custom Errors (Gas efficient and best practice) ---\n    error Unauthorized(address caller);\n    error InvalidLength();\n    error InvalidAmount();\n    error InvalidMilestone(uint256 projectId, uint256 milestoneIndex);\n    error AlreadyCompleted();\n    error TransferFailed();\n    error OnlyContractor(address contractor);\n\n    // --- 1. STATE VARIABLES & STRUCTS ---\n\n    // The address of the AI Oracle, set once in the constructor.\n    address public immutable oracleAddress;\n    // NOTE: Global 'funder' variable deleted\n\n    struct Milestone {\n        string description;\n        uint256 amount; \n        bool isCompleted; \n        bool isReleased;  \n        string evidenceIpfsHash; \n    }\n\n    struct Project {\n        // NEW: Store the funder specific to this project\n        address funder; \n        address contractor;\n        uint256 totalBudget;\n        uint256 fundsReleased;\n        uint256 milestoneCount;\n        Milestone[] milestones;\n    }\n\n    uint256 public nextProjectId; \n    mapping(uint256 => Project) public projects;\n\n    // --- 2. MODIFIERS & EVENTS ---\n\n    modifier onlyOracle() {\n        if (msg.sender != oracleAddress) {\n            revert Unauthorized(msg.sender); \n        }\n        _;\n    }\n\n    // NOTE: onlyFunder modifier deleted\n    \n    event ProjectCreated(uint256 indexed projectId, address indexed contractor, uint256 budget);\n    event MilestoneReleased(uint256 indexed projectId, uint256 indexed milestoneIndex, uint256 amount);\n    event EvidenceSubmitted(uint256 indexed projectId, uint256 indexed milestoneIndex, string ipfsHash);\n\n\n    // --- 3. CONSTRUCTOR ---\n\n    constructor(address _oracleAddress) { // Removed payable as funder logic is external\n        oracleAddress = _oracleAddress;\n        // Removed: funder = msg.sender;\n    }\n\n\n    // --- 4. FUNDER FUNCTION (Create Project) ---\n\n    function createProject(\n        address _contractor,\n        uint256[] memory _milestoneAmounts,\n        string[] memory _milestoneDescriptions\n    ) external payable returns (uint256) { // Removed onlyFunder modifier\n        if (_milestoneAmounts.length != _milestoneDescriptions.length) {\n            revert InvalidLength();\n        }\n        \n        uint256 totalProjectCost;\n        for (uint256 i = 0; i < _milestoneAmounts.length; i++) {\n            totalProjectCost += _milestoneAmounts[i];\n        }\n\n        if (msg.value != totalProjectCost) {\n            revert InvalidAmount();\n        }\n\n        Project storage newProject = projects[nextProjectId];\n        newProject.funder = msg.sender; // NEW: Store the sender (funder)\n        newProject.contractor = _contractor;\n        newProject.totalBudget = totalProjectCost;\n        newProject.milestoneCount = _milestoneAmounts.length;\n        \n        for (uint256 i = 0; i < _milestoneAmounts.length; i++) {\n            newProject.milestones.push(Milestone({\n                description: _milestoneDescriptions[i],\n                amount: _milestoneAmounts[i],\n                isCompleted: false,\n                isReleased: false,\n                evidenceIpfsHash: \"\"\n            }));\n        }\n\n        emit ProjectCreated(nextProjectId, _contractor, totalProjectCost);\n        return nextProjectId++;\n    }\n\n\n    // --- 5. CONTRACTOR FUNCTION (Submit Evidence) ---\n\n    function submitEvidence(\n        uint256 _projectId, \n        uint256 _milestoneIndex, \n        string memory _ipfsHash\n    ) external {\n        Project storage project = projects[_projectId];\n        if (msg.sender != project.contractor) {\n            revert OnlyContractor(project.contractor);\n        }\n        if (_milestoneIndex >= project.milestoneCount) {\n            revert InvalidMilestone(_projectId, _milestoneIndex);\n        }\n        if (project.milestones[_milestoneIndex].isCompleted) {\n            revert AlreadyCompleted();\n        }\n\n        project.milestones[_milestoneIndex].evidenceIpfsHash = _ipfsHash;\n        \n        emit EvidenceSubmitted(_projectId, _milestoneIndex, _ipfsHash);\n    }\n\n\n    // --- 6. ORACLE FUNCTION (The Pay Function) ---\n\n    function releaseMilestone(\n        uint256 _projectId, \n        uint256 _milestoneIndex, \n        bool _verdict\n    ) external onlyOracle {\n        Project storage project = projects[_projectId];\n        Milestone storage milestone = project.milestones[_milestoneIndex];\n\n        if (_milestoneIndex >= project.milestoneCount) {\n            revert InvalidMilestone(_projectId, _milestoneIndex);\n        }\n        if (milestone.isCompleted) {\n            revert AlreadyCompleted();\n        }\n        \n        milestone.isCompleted = true; \n        \n        if (_verdict == true) {\n            milestone.isReleased = true; \n            project.fundsReleased += milestone.amount;\n\n            // Use call to send funds securely\n            (bool success, ) = payable(project.contractor).call{value: milestone.amount}(\"\");\n            if (!success) {\n                revert TransferFailed();\n            }\n            \n            emit MilestoneReleased(_projectId, _milestoneIndex, milestone.amount);\n        }\n    }\n\n    // Allows the contract to receive ETH directly (e.g., in a simple transfer)\n    receive() external payable {}\n}"
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "evmVersion": "paris",
+    "outputSelection": {
+      "*": {
+        "*": [
+          "abi",
+          "evm.bytecode",
+          "evm.deployedBytecode",
+          "evm.methodIdentifiers",
+          "metadata",
+          "devdoc",
+          "userdoc",
+          "storageLayout",
+          "evm.gasEstimates"
+        ],
+        "": [
+          "ast"
+        ]
+      }
+    },
+    "metadata": {
+      "useLiteralContent": true
+    }
+  }
+}

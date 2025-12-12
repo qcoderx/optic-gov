@@ -16,7 +16,6 @@ const deployOpticGov: DeployFunction = async (hre: HardhatRuntimeEnvironment) =>
     } else {
         // Sepolia (Testnet) -> The production path
         // Pull the dedicated AI Oracle address from the environment variable
-        // The '|| deployer' is a safety fallback, but should be set in .env
         oracleAddress = process.env.ORACLE_WALLET_ADDRESS || deployer; 
         console.warn(`[${chainId}] WARNING: Oracle Address set to: ${oracleAddress}. Verify this is the Backend's Wallet.`);
     }
@@ -25,8 +24,8 @@ const deployOpticGov: DeployFunction = async (hre: HardhatRuntimeEnvironment) =>
         from: deployer,
         // The constructor argument for OpticGov(address _oracleAddress)
         args: [oracleAddress], 
-        log: true, 
-        waitConfirmations: 5, // Wait for confirmation on a public network
+        log: true,
+        waitConfirmations: 5, 
     });
 };
 

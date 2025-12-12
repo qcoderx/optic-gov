@@ -15,18 +15,19 @@ contract OpticGov {
 
     // The address of the AI Oracle, set once in the constructor.
     address public immutable oracleAddress;
-    // The address that deployed the contract, which is also the initial funder.
-    address public immutable funder; 
+    // NOTE: Global 'funder' variable deleted
 
     struct Milestone {
         string description;
         uint256 amount; 
-        bool isCompleted; // True if processed (paid or rejected)
-        bool isReleased;  // True if funds were actually sent
+        bool isCompleted; 
+        bool isReleased;  
         string evidenceIpfsHash; 
     }
 
     struct Project {
+        // NEW: Store the funder specific to this project
+        address funder; 
         address contractor;
         uint256 totalBudget;
         uint256 fundsReleased;
@@ -46,14 +47,8 @@ contract OpticGov {
         _;
     }
 
-    modifier onlyFunder() {
-        if (msg.sender != funder) {
-            revert Unauthorized(msg.sender);
-        }
-        _;
-    }
+    // NOTE: onlyFunder modifier deleted
     
-    // NOTE: projectId is indexed for frontend filtering
     event ProjectCreated(uint256 indexed projectId, address indexed contractor, uint256 budget);
     event MilestoneReleased(uint256 indexed projectId, uint256 indexed milestoneIndex, uint256 amount);
     event EvidenceSubmitted(uint256 indexed projectId, uint256 indexed milestoneIndex, string ipfsHash);
@@ -61,9 +56,9 @@ contract OpticGov {
 
     // --- 3. CONSTRUCTOR ---
 
-    constructor(address _oracleAddress) payable {
+    constructor(address _oracleAddress) { // Removed payable as funder logic is external
         oracleAddress = _oracleAddress;
-        funder = msg.sender;
+        // Removed: funder = msg.sender;
     }
 
 
@@ -73,7 +68,7 @@ contract OpticGov {
         address _contractor,
         uint256[] memory _milestoneAmounts,
         string[] memory _milestoneDescriptions
-    ) external onlyFunder payable returns (uint256) {
+    ) external payable returns (uint256) { // Removed onlyFunder modifier
         if (_milestoneAmounts.length != _milestoneDescriptions.length) {
             revert InvalidLength();
         }
@@ -88,6 +83,7 @@ contract OpticGov {
         }
 
         Project storage newProject = projects[nextProjectId];
+        newProject.funder = msg.sender; // NEW: Store the sender (funder)
         newProject.contractor = _contractor;
         newProject.totalBudget = totalProjectCost;
         newProject.milestoneCount = _milestoneAmounts.length;
@@ -148,7 +144,6 @@ contract OpticGov {
             revert AlreadyCompleted();
         }
         
-        // Mark milestone as processed regardless of verdict
         milestone.isCompleted = true; 
         
         if (_verdict == true) {
@@ -163,7 +158,6 @@ contract OpticGov {
             
             emit MilestoneReleased(_projectId, _milestoneIndex, milestone.amount);
         }
-        // If _verdict is false, the milestone is marked complete but funds are not released.
     }
 
     // Allows the contract to receive ETH directly (e.g., in a simple transfer)
