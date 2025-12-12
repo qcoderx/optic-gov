@@ -18,9 +18,31 @@ export const RegistrationForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await submit();
-    if (success) {
-      console.log('Registration successful!');
+    
+    try {
+      const response = await fetch('https://optic-gov.onrender.com/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          wallet_address: data.walletAddress,
+          company_name: data.fullName
+        })
+      });
+      
+      if (response.ok) {
+        console.log('Registration successful!');
+        alert('Registration successful!');
+      } else {
+        const error = await response.json();
+        alert(`Registration failed: ${error.detail}`);
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      alert('Registration failed. Please try again.');
     }
   };
 
@@ -59,6 +81,16 @@ export const RegistrationForm = () => {
           value={data.email}
           onChange={(e) => updateField('email', e.target.value)}
           error={errors.email}
+        />
+
+        <Input
+          id="walletAddress"
+          label="Ethereum Wallet Address"
+          icon="account_balance_wallet"
+          placeholder="0x..."
+          value={data.walletAddress}
+          onChange={(e) => updateField('walletAddress', e.target.value)}
+          error={errors.walletAddress}
         />
 
         <Input

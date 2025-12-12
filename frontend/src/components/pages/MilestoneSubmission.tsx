@@ -64,8 +64,36 @@ export const MilestoneSubmission = () => {
   };
 
   const handleVerifyMilestone = async (videoUrl: string) => {
-    // Placeholder for milestone verification logic
-    console.log('Verifying milestone with video:', videoUrl);
+    try {
+      const response = await fetch('https://optic-gov.onrender.com/verify-milestone', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}` // Add auth token if available
+        },
+        body: JSON.stringify({
+          video_url: videoUrl,
+          milestone_criteria: "Structural verification",
+          project_id: 1,
+          milestone_index: 0
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.verified) {
+          alert('Verified!');
+        } else {
+          alert(`Verification failed: ${result.reasoning}`);
+        }
+      } else {
+        const error = await response.json();
+        alert(`Verification error: ${error.detail}`);
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+      alert('Verification failed. Please try again.');
+    }
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
