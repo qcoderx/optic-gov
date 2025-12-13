@@ -9,13 +9,37 @@ export const GovernorLoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = () => {
+  const connectWallet = async () => {
+    if (typeof window.ethereum === 'undefined') {
+      alert('Please install MetaMask!');
+      return;
+    }
+
     setIsConnecting(true);
-    setTimeout(() => {
-      navigate('/governor');
-    }, 2000);
+    try {
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      if (accounts.length > 0) {
+        setWalletConnected(true);
+        setWalletAddress(accounts[0]);
+      }
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+      alert('Failed to connect wallet. Please try again.');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleLogin = () => {
+    if (!walletConnected) {
+      alert('Please connect your wallet first!');
+      return;
+    }
+    navigate('/governor');
   };
 
   return (
@@ -240,12 +264,12 @@ export const GovernorLoginPage = () => {
                     <span className="text-xs text-[#9cbaa6] bg-[#29382f] px-2 py-1 rounded">Required</span>
                   </div>
                   <Button
-                    onClick={() => setIsConnecting(!isConnecting)}
-                    className="w-full bg-[#29382f] hover:bg-[#35463b] text-white border border-[#35463b] hover:border-primary/30"
+                    onClick={connectWallet}
+                    className={`w-full border ${walletConnected ? 'bg-green-600 hover:bg-green-700 border-green-600' : 'bg-[#29382f] hover:bg-[#35463b] border-[#35463b] hover:border-primary/30'} text-white`}
                     loading={isConnecting}
                   >
                     <Icon name="account_balance_wallet" size="sm" className="mr-2" />
-                    {isConnecting ? 'Connecting...' : 'Connect Governor Wallet'}
+                    {walletConnected ? `Connected: ${walletAddress.slice(0,6)}...${walletAddress.slice(-4)}` : isConnecting ? 'Connecting...' : 'Connect Governor Wallet'}
                   </Button>
                 </div>
 
@@ -253,7 +277,7 @@ export const GovernorLoginPage = () => {
                 <Button
                   onClick={handleLogin}
                   className="w-full bg-primary hover:bg-[#2bc466] text-[#111714] font-bold py-3 shadow-[0_4px_14px_0_rgba(56,224,123,0.39)]"
-                  disabled={!email || !password}
+                  disabled={!email || !password || !walletConnected}
                 >
                   Access Governor Dashboard
                 </Button>
