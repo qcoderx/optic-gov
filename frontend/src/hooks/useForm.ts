@@ -14,6 +14,7 @@ export const useForm = () => {
     role: 'Governor',
     fullName: '',
     email: '',
+    walletAddress: '',
     password: '',
     confirmPassword: '',
     acceptTerms: false

@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Icon } from '@/components/ui/Icon';
 import { Web3Icon } from '@/components/ui/Web3Icon';
 import { useLogin } from '@/hooks/useLogin';
 

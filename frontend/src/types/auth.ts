@@ -2,6 +2,7 @@ export interface RegistrationData {
   role: 'Governor' | 'Contractor';
   fullName: string;
   email: string;
+  walletAddress: string;
   password: string;
   confirmPassword: string;
   acceptTerms: boolean;
@@ -13,8 +14,10 @@ export interface LoginData {
 }
 
 export interface FormErrors {
+  role?: string;
   fullName?: string;
   email?: string;
+  walletAddress?: string;
   password?: string;
   confirmPassword?: string;
   acceptTerms?: string;

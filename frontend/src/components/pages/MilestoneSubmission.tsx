@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
-import { Button } from '@/components/ui/Button';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 
 export const MilestoneSubmission = () => {
@@ -10,10 +9,9 @@ export const MilestoneSubmission = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
   const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string | null>(null);
 
   const uploadToCloudinary = async (file: File): Promise<string> => {
-    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dayzmcmhu';
+    const cloudName = (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME || 'dayzmcmhu';
     const uploadPreset = 'optic_gov_raw';
     
     const formData = new FormData();
