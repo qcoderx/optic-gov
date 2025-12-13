@@ -53,6 +53,11 @@ export const Header = () => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
+  const disconnectWallet = () => {
+    setIsConnected(false);
+    setAddress(null);
+  };
+
   useEffect(() => {
     checkConnection();
     
@@ -130,19 +135,34 @@ export const Header = () => {
               </svg>
             </a>
 
-            <Button
-              onClick={connectWallet}
-              loading={isConnecting}
-              className={`shadow-primary ${isConnected ? 'bg-green-600 hover:bg-green-700' : ''}`}
-            >
-              <Icon name="account_balance_wallet" size="sm" />
-              <span className="truncate">
-                {isConnected && address 
-                  ? formatAddress(address)
-                  : 'Connect Wallet'
-                }
-              </span>
-            </Button>
+            {isConnected && address ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  className="bg-green-600 hover:bg-green-700 text-white border-green-600"
+                >
+                  <Icon name="account_balance_wallet" size="sm" />
+                  <span className="truncate">{formatAddress(address)}</span>
+                </Button>
+                <Button
+                  onClick={disconnectWallet}
+                  variant="secondary"
+                  className="bg-red-600 hover:bg-red-700 text-white border-red-600"
+                  title="Disconnect Wallet"
+                >
+                  <Icon name="logout" size="sm" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                onClick={connectWallet}
+                loading={isConnecting}
+                className="shadow-primary"
+              >
+                <Icon name="account_balance_wallet" size="sm" />
+                <span className="truncate">Connect Wallet</span>
+              </Button>
+            )}
           </div>
         </div>
       </div>
