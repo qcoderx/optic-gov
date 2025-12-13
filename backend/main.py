@@ -253,7 +253,16 @@ Return ONLY a JSON array like: ["Foundation excavation", "Concrete pouring", "St
 async def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
     contractor = db.query(Contractor).filter(Contractor.wallet_address == project.contractor_wallet).first()
     if not contractor:
-        raise HTTPException(status_code=404, detail="Contractor not found")
+        # Auto-create contractor if not exists
+        contractor = Contractor(
+            wallet_address=project.contractor_wallet,
+            company_name=f"Contractor {project.contractor_wallet[:8]}",
+            email=f"contractor_{project.contractor_wallet[:8]}@temp.com",
+            password_hash="temp_hash"  # Temporary hash
+        )
+        db.add(contractor)
+        db.commit()
+        db.refresh(contractor)
     
     # Convert budget to ETH if provided in NGN
     budget_eth = project.total_budget
