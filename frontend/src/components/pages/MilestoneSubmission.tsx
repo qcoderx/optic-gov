@@ -9,6 +9,7 @@ export const MilestoneSubmission = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [, setUploadedVideoUrl] = useState<string>('');
 
   const uploadToCloudinary = async (file: File): Promise<string> => {
     const cloudName = (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME || 'dayzmcmhu';

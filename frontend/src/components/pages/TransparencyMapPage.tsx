@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { searchPlaces, Place } from '@/services/placesService';
+import { Place } from '@/services/placesService';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { LeafletMap } from '@/components/ui/LeafletMap';
 import { SearchBox } from '@/components/ui/SearchBox';
 
-interface Project {
+interface LocalProject {
   id: string;
   name: string;
   status: 'completed' | 'pending' | 'in-progress';
@@ -15,7 +15,7 @@ interface Project {
   place?: Place;
 }
 
-const defaultProjects: Project[] = [
+const defaultProjects: LocalProject[] = [
   { id: '1', name: 'Third Mainland Bridge Repair', status: 'completed', budget: '500 ETH', location: 'Lagos Island', completion: 100 },
   { id: '2', name: 'Abuja-Kaduna Expressway', status: 'in-progress', budget: '1,200 ETH', location: 'FCT Abuja', completion: 45 },
   { id: '3', name: 'Lagos Blue Line Rail', status: 'pending', budget: '3,500 ETH', location: 'Victoria Island', completion: 0 },
@@ -23,30 +23,14 @@ const defaultProjects: Project[] = [
 ];
 
 export const TransparencyMapPage = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Place[]>([]);
-  const [projects, setProjects] = useState<Project[]>(defaultProjects);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(defaultProjects[0]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults] = useState<Place[]>([]);
+  const [projects, setProjects] = useState<LocalProject[]>(defaultProjects);
+  const [selectedProject, setSelectedProject] = useState<LocalProject | null>(defaultProjects[0]);
   const [isNavigating, setIsNavigating] = useState(false);
   const navigate = useNavigate();
 
-  const handleSearch = async (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && searchQuery.trim()) {
-      setIsSearching(true);
-      try {
-        const results = await searchPlaces(searchQuery);
-        setSearchResults(results);
-      } catch (error) {
-        console.error('Search failed:', error);
-      } finally {
-        setIsSearching(false);
-      }
-    }
-  };
-
   const handlePlaceSelect = (place: Place) => {
-    const newProject: Project = {
+    const newProject: LocalProject = {
       id: `search-${Date.now()}`,
       name: generateProjectName(place.displayName.text),
       status: 'pending',
@@ -65,7 +49,7 @@ export const TransparencyMapPage = () => {
     }, 1500);
   };
 
-  const handleProjectSelect = (project: Project) => {
+  const handleProjectSelect = (project: LocalProject) => {
     setIsNavigating(true);
     localStorage.setItem('selectedProject', JSON.stringify(project));
     
@@ -151,7 +135,7 @@ export const TransparencyMapPage = () => {
               <div className="p-5 border-b border-[#29382f] bg-[#1c2620]/50">
                 <SearchBox 
                   onLocationSelect={(lat, lon, projectTitle) => {
-                    const newProject: Project = {
+                    const newProject: LocalProject = {
                       id: `search-${Date.now()}`,
                       name: projectTitle,
                       status: Math.random() > 0.5 ? 'pending' : 'in-progress',
@@ -194,7 +178,7 @@ export const TransparencyMapPage = () => {
                 {searchResults.length > 0 && (
                   <div className="p-4 border-b border-[#29382f] bg-[#38e07b]/5">
                     <h4 className="text-xs font-bold text-[#38e07b] mb-3 uppercase tracking-wider">Search Results</h4>
-                    {searchResults.slice(0, 3).map((place, index) => (
+                    {searchResults.slice(0, 3).map((place) => (
                       <div 
                         key={place.id}
                         onClick={() => handlePlaceSelect(place)}
@@ -223,7 +207,7 @@ export const TransparencyMapPage = () => {
                   </div>
                   <p className="text-xs text-gray-400 mb-3">Project ID: #NG-2024-882 • Lagos Island</p>
                   <div className="flex justify-between items-center text-xs">
-                    <div className="flex flex-col">
+                      <div className="flex flex-col">
                       <span className="text-gray-500 uppercase text-[10px] font-bold">Budget</span>
                       <span className="text-white font-mono">500 ETH</span>
                     </div>
@@ -311,7 +295,7 @@ export const TransparencyMapPage = () => {
               <LeafletMap 
                 projects={projects}
                 selectedProject={selectedProject}
-                onProjectSelect={setSelectedProject}
+                onProjectSelect={(project) => setSelectedProject(project)}
                 center={selectedProject?.place ? [selectedProject.place.location.latitude, selectedProject.place.location.longitude] : [9.0765, 7.3986]}
                 zoom={selectedProject?.place ? 12 : 6}
               />

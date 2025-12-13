@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Icon } from '@/components/ui/Icon';
+
 import { Web3Icon } from '@/components/ui/Web3Icon';
 import { TypewriterOnView } from '@/components/ui/TypewriterOnView';
 import type { Feature } from '@/types';

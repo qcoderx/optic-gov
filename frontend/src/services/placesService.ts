@@ -42,7 +42,7 @@ export const searchPlaces = async (query: string): Promise<Place[]> => {
   }
 };
 
-export const getPlacePhoto = async (photoName: string): Promise<string | null> => {
+export const getPlacePhoto = async (): Promise<string | null> => {
   // For now, return null as we're using free API without photo support
   return null;
 };

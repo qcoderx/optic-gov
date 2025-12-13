@@ -20,7 +20,7 @@ export const GoogleMap = ({ projects, selectedProject, onProjectSelect }: Google
     
     const loadStreetView = async () => {
       setLoading(true);
-      const imageUrl = await getStreetViewImage(selectedProject.location);
+      const imageUrl = await getStreetViewImage(selectedProject.location || '');
       if (imageUrl) {
         setStreetViewImages(prev => ({ ...prev, [selectedProject.id]: imageUrl }));
       }

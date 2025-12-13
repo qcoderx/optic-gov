@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
-import { Button } from '@/components/ui/Button';
+
 import { LeafletMap } from '@/components/ui/LeafletMap';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 
-interface Project {
+interface LocalProject {
   id: string;
   name: string;
   status: 'verified' | 'alert' | 'pending' | 'draft';
@@ -17,7 +17,7 @@ interface Project {
   };
 }
 
-const mockProjects: Project[] = [
+const mockProjects: LocalProject[] = [
   {
     id: '8821',
     name: 'Central Highway Repair',
@@ -57,7 +57,7 @@ const mockProjects: Project[] = [
 ];
 
 export const GovernorMapDashboard = () => {
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedProject, setSelectedProject] = useState<LocalProject | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isNavigating, setIsNavigating] = useState(false);
 
@@ -168,7 +168,7 @@ export const GovernorMapDashboard = () => {
           <LeafletMap 
             projects={mockProjects}
             selectedProject={selectedProject}
-            onProjectSelect={setSelectedProject}
+            onProjectSelect={(project) => setSelectedProject(project)}
             center={[9.0820, 8.6753]}
             zoom={6}
           />

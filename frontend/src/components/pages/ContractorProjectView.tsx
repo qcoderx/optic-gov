@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
-import { Button } from '@/components/ui/Button';
+
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 
 export const ContractorProjectView = () => {
   const [isNavigating, setIsNavigating] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isProcessing] = useState(false);
 
   const handleVerifyMilestone = () => {
     setIsNavigating(true);

@@ -14,7 +14,7 @@ const roleOptions = [
 ];
 
 export const RegistrationForm = () => {
-  const { data, errors, isLoading, updateField, submit } = useForm();
+  const { data, errors, isLoading, updateField } = useForm();
   const passwordToggle = usePasswordToggle();
   const [connectedWallet, setConnectedWallet] = useState<string | null>(null);
 

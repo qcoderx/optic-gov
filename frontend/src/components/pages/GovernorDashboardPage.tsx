@@ -14,7 +14,7 @@ export const GovernorDashboardPage = () => {
   const [milestoneDescription, setMilestoneDescription] = useState('');
   const [isNavigating, setIsNavigating] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [projectLocation, setProjectLocation] = useState({ lat: 6.5244, lng: 3.3792 }); // Default to Lagos
+  const [projectLocation] = useState({ lat: 6.5244, lng: 3.3792 }); // Default to Lagos
 
   const handleCreateProject = async () => {
     if (!projectName || !contractorAddress || !budget) {

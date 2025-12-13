@@ -10,33 +10,32 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-interface Project {
+interface BaseProject {
   id: string;
   name: string;
-  status: 'completed' | 'pending' | 'in-progress';
-  budget: string;
+  status: string;
   location: string;
-  completion: number;
+  budget?: string | number;
   place?: {
     location: { latitude: number; longitude: number };
   };
 }
 
-interface LeafletMapProps {
-  projects: Project[];
-  selectedProject: Project | null;
-  onProjectSelect: (project: Project) => void;
+interface LeafletMapProps<T extends BaseProject> {
+  projects: T[];
+  selectedProject: T | null;
+  onProjectSelect: (project: T) => void;
   center?: [number, number];
   zoom?: number;
 }
 
-export const LeafletMap = ({ 
+export const LeafletMap = <T extends BaseProject>({ 
   projects, 
   selectedProject, 
   onProjectSelect, 
   center = [9.0820, 8.6753], // Nigeria center (more focused)
   zoom = 6 
-}: LeafletMapProps) => {
+}: LeafletMapProps<T>) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
@@ -197,7 +196,7 @@ export const LeafletMap = ({
             ${project.location}
           </p>
           <p style="margin: 0 0 8px 0; font-size: 12px; color: #38e07b;">
-            Budget: ${project.budget}
+            Budget: ${project.budget || 'TBD'}
           </p>
           <div style="
             display: inline-block;

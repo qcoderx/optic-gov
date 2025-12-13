@@ -197,7 +197,7 @@ export const ProjectDetailsPage = () => {
               {/* Vertical Line */}
               <div className="absolute left-[27px] top-4 bottom-10 w-0.5 bg-[#29382f]" />
               
-              {milestones.map((milestone, index) => (
+              {milestones.map((milestone) => (
                 <div key={milestone.id} className={`relative flex gap-6 pb-12 group ${milestone.status === 'locked' ? 'opacity-50' : ''}`}>
                   <div className="flex flex-col items-center">
                     <div className={`z-10 flex items-center justify-center w-6 h-6 rounded-full ring-4 ring-[#122017] ${
