@@ -15,7 +15,7 @@ export const GovernorLoginPage = () => {
 
   const connectWallet = async () => {
     if (typeof window.ethereum === 'undefined') {
-      alert('Please install MetaMask!');
+      console.log('Please install MetaMask!');
       return;
     }
 
@@ -28,7 +28,6 @@ export const GovernorLoginPage = () => {
       }
     } catch (error) {
       console.error('Failed to connect wallet:', error);
-      alert('Failed to connect wallet. Please try again.');
     } finally {
       setIsConnecting(false);
     }
@@ -36,10 +35,10 @@ export const GovernorLoginPage = () => {
 
   const handleLogin = () => {
     if (!walletConnected) {
-      alert('Please connect your wallet first!');
+      console.log('Please connect your wallet first!');
       return;
     }
-    navigate('/governor');
+    navigate('/governor/dashboard');
   };
 
   return (
@@ -277,7 +276,7 @@ export const GovernorLoginPage = () => {
                 <Button
                   onClick={handleLogin}
                   className="w-full bg-primary hover:bg-[#2bc466] text-[#111714] font-bold py-3 shadow-[0_4px_14px_0_rgba(56,224,123,0.39)]"
-                  disabled={!email || !password || !walletConnected}
+                  disabled={!walletConnected}
                 >
                   Access Governor Dashboard
                 </Button>

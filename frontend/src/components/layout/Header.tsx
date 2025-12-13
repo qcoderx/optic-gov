@@ -40,12 +40,11 @@ export const Header = () => {
         }
       } catch (error) {
         console.error('Failed to connect wallet:', error);
-        alert('Failed to connect wallet. Please try again.');
       } finally {
         setIsConnecting(false);
       }
     } else {
-      alert('Please install MetaMask!');
+      console.log('Please install MetaMask!');
     }
   };
 

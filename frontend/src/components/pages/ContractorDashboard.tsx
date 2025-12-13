@@ -1,20 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
-
-interface Project {
-  id: string;
-  name: string;
-  status: 'pending' | 'approved' | 'in-progress';
-  nextMilestone: string;
-  daysLeft: number;
-  fundsLocked: string;
-  progress: number;
-  image: string;
-}
+import { projectService } from '@/services/projectService';
+import type { Project } from '@/types/project';
 
 const mockProjects: Project[] = [
   {
@@ -79,6 +70,28 @@ const activities = [
 export const ContractorDashboard = () => {
   const [activeFilter, setActiveFilter] = useState('Active');
   const [isNavigating, setIsNavigating] = useState(false);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const loadProjects = async () => {
+    try {
+      const response = await projectService.getAllProjects();
+      const projectsArray = response.projects || response || [];
+      const transformedProjects = Array.isArray(projectsArray) 
+        ? projectsArray.map(project => projectService.transformProject(project))
+        : [];
+      setProjects(transformedProjects);
+    } catch (error) {
+      console.error('Failed to load projects:', error);
+      setProjects([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -247,7 +260,17 @@ export const ContractorDashboard = () => {
 
             {/* Project Cards */}
             <div className="space-y-6">
-              {mockProjects.map((project, index) => (
+              {isLoading ? (
+                <div className="text-center py-8">
+                  <LoadingScreen message="Loading projects..." />
+                </div>
+              ) : projects.length === 0 ? (
+                <div className="text-center py-8 text-[#9db9a8]">
+                  <Icon name="folder_open" className="text-4xl mb-4" />
+                  <p>No projects assigned yet</p>
+                </div>
+              ) : (
+                projects.map((project, index) => (
                 <motion.article
                   key={project.id}
                   className="bg-[#1c2720] rounded-xl border border-[#28392f] overflow-hidden hover:border-[#38e07b]/50 transition-colors group"
@@ -281,32 +304,25 @@ export const ContractorDashboard = () => {
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
                           <div>
-                            <p className="text-xs text-[#9db9a8] uppercase tracking-wider">Next Milestone</p>
-                            <p className="text-white font-medium">{project.nextMilestone}</p>
-                            <p className={`text-xs ${project.daysLeft <= 5 ? 'text-red-400' : 'text-[#9db9a8]'}`}>
-                              Due in {project.daysLeft} days
+                            <p className="text-xs text-[#9db9a8] uppercase tracking-wider">Status</p>
+                            <p className="text-white font-medium">{project.status}</p>
+                            <p className="text-xs text-[#9db9a8]">
+                              Created: {project.created_at ? new Date(project.created_at).toLocaleDateString() : 'N/A'}
                             </p>
                           </div>
                           <div>
-                            <p className="text-xs text-[#9db9a8] uppercase tracking-wider">Funds Locked</p>
-                            <CurrencyDisplay 
-                              ethAmount={(() => {
-                                try {
-                                  const ethStr = project.fundsLocked.replace(' ETH', '');
-                                  const parsed = parseFloat(ethStr);
-                                  return isNaN(parsed) ? 0 : parsed;
-                                } catch {
-                                  return 0;
-                                }
-                              })()} 
-                              showBoth={true}
-                              className="text-white font-medium text-sm"
-                            />
+                            <p className="text-xs text-[#9db9a8] uppercase tracking-wider">Budget</p>
+                            <p className="text-white font-medium">
+                              {project.budget_currency === 'ETH' 
+                                ? `${project.budget} ETH`
+                                : `₦${project.total_budget_ngn?.toLocaleString() || project.budget?.toLocaleString()}`
+                              }
+                            </p>
                           </div>
                           <div>
-                            <p className="text-xs text-[#9db9a8] uppercase tracking-wider">Milestone Status</p>
-                            <p className={`font-medium ${getStatusColor(project.status)}`}>
-                              {getStatusText(project.status)}
+                            <p className="text-xs text-[#9db9a8] uppercase tracking-wider">Location</p>
+                            <p className="text-white font-medium text-xs">
+                              {project.coordinates ? 'GPS Set' : 'No Location'}
                             </p>
                           </div>
                         </div>
@@ -315,14 +331,14 @@ export const ContractorDashboard = () => {
                       <div className="space-y-3">
                         <div className="w-full">
                           <div className="flex justify-between text-xs mb-1">
-                            <span className="text-white">Overall Progress</span>
-                            <span className="text-[#38e07b]">{project.progress}%</span>
+                            <span className="text-white">Project Status</span>
+                            <span className="text-[#38e07b]">{project.status}</span>
                           </div>
                           <div className="w-full bg-[#111814] rounded-full h-2 overflow-hidden">
                             <motion.div 
                               className="bg-[#38e07b] h-2 rounded-full"
                               initial={{ width: 0 }}
-                              animate={{ width: `${project.progress}%` }}
+                              animate={{ width: '25%' }}
                               transition={{ duration: 1, delay: 0.8 + index * 0.1 }}
                             />
                           </div>
@@ -357,7 +373,8 @@ export const ContractorDashboard = () => {
                     </div>
                   </div>
                 </motion.article>
-              ))}
+                ))
+              )}
             </div>
           </motion.div>
 

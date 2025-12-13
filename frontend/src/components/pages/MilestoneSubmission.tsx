@@ -63,35 +63,45 @@ export const MilestoneSubmission = () => {
   };
 
   const handleVerifyMilestone = async (videoUrl: string) => {
+    console.log('Starting milestone verification...');
+    console.log('Video URL:', videoUrl);
+    
     try {
+      const requestData = {
+        video_url: videoUrl,
+        milestone_criteria: "Structural verification",
+        project_id: 1,
+        milestone_index: 0
+      };
+      
+      console.log('Making API call to verify milestone');
+      console.log('Request data:', requestData);
+      
       const response = await fetch('https://optic-gov.onrender.com/verify-milestone', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}` // Add auth token if available
         },
-        body: JSON.stringify({
-          video_url: videoUrl,
-          milestone_criteria: "Structural verification",
-          project_id: 1,
-          milestone_index: 0
-        })
+        body: JSON.stringify(requestData)
       });
+      
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
       
       if (response.ok) {
         const result = await response.json();
+        console.log('Verification result:', result);
         if (result.verified) {
-          alert('Verified!');
+          console.log('✅ Verification successful!');
         } else {
-          alert(`Verification failed: ${result.reasoning}`);
+          console.log('❌ Verification failed:', result.reasoning);
         }
       } else {
-        const error = await response.json();
-        alert(`Verification error: ${error.detail}`);
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
       }
     } catch (error) {
-      console.error('Verification error:', error);
-      alert('Verification failed. Please try again.');
+      console.error('Network/Fetch Error:', error);
     }
   };
 

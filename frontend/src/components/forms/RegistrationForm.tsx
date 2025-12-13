@@ -70,14 +70,14 @@ export const RegistrationForm = () => {
       
       if (response.ok) {
         console.log('Registration successful!');
-        alert('Registration successful!');
+        // Redirect to appropriate dashboard
+        window.location.href = data.role === 'Governor' ? '/governor' : '/contractor';
       } else {
         const error = await response.json();
-        alert(`Registration failed: ${error.detail}`);
+        console.error('Registration failed:', error.detail);
       }
     } catch (error) {
       console.error('Registration error:', error);
-      alert('Registration failed. Please try again.');
     }
   };
 

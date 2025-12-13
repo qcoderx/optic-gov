@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Icon } from '@/components/ui/Icon';
 
 import { LeafletMap } from '@/components/ui/LeafletMap';
@@ -57,6 +58,7 @@ const mockProjects: LocalProject[] = [
 ];
 
 export const GovernorMapDashboard = () => {
+  const navigate = useNavigate();
   const [selectedProject, setSelectedProject] = useState<LocalProject | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isNavigating, setIsNavigating] = useState(false);
@@ -195,18 +197,27 @@ export const GovernorMapDashboard = () => {
             </div>
             {/* Primary Action */}
             <motion.button 
-              className="w-full h-12 bg-[#38e07b] hover:bg-[#22c55a] text-[#111813] font-bold rounded-lg flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(56,224,123,0.2)] transition-all mb-6"
+              className="w-full h-12 bg-[#38e07b] hover:bg-[#22c55a] text-[#111813] font-bold rounded-lg flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(56,224,123,0.2)] transition-all mb-4"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => {
                 setIsNavigating(true);
                 setTimeout(() => {
-                  window.location.href = '/governor';
+                  navigate('/governor');
                 }, 1500);
               }}
             >
               <Icon name="add_circle" />
               Create New Project
+            </motion.button>
+            <motion.button 
+              className="w-full h-10 bg-[#1a2c20] hover:bg-[#28392e] text-white font-medium rounded-lg flex items-center justify-center gap-2 border border-[#28392e] transition-all mb-6"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate('/governor/projects')}
+            >
+              <Icon name="folder_open" size="sm" />
+              View All Projects
             </motion.button>
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-3 mb-2">

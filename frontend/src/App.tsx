@@ -16,6 +16,8 @@ import { GovernorMapDashboard } from '@/components/pages/GovernorMapDashboard';
 import { ContractorDashboard } from '@/components/pages/ContractorDashboard';
 import { MilestoneSubmission } from '@/components/pages/MilestoneSubmission';
 import { ContractorProjectView } from '@/components/pages/ContractorProjectView';
+import { ActiveProjectsPage } from '@/components/pages/ActiveProjectsPage';
+import { AppFlowGuide } from '@/components/pages/AppFlowGuide';
 
 const HomePage = () => (
   <div className="relative flex h-auto min-h-screen w-full flex-col">
@@ -43,6 +45,8 @@ function App() {
         <Route path="/governor" element={<GovernorDashboardPage />} />
         <Route path="/governor/login" element={<GovernorLoginPage />} />
         <Route path="/governor/dashboard" element={<GovernorMapDashboard />} />
+        <Route path="/governor/projects" element={<ActiveProjectsPage />} />
+        <Route path="/guide" element={<AppFlowGuide />} />
         <Route path="/contractor" element={<ContractorDashboard />} />
         <Route path="/contractor/milestone/:milestoneId" element={<MilestoneSubmission />} />
         <Route path="/contractor/project/:projectId" element={<ContractorProjectView />} />
