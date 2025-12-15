@@ -15,9 +15,11 @@ import { GovernorLoginPage } from '@/components/pages/GovernorLoginPage';
 import { GovernorMapDashboard } from '@/components/pages/GovernorMapDashboard';
 import { ContractorDashboard } from '@/components/pages/ContractorDashboard';
 import { MilestoneSubmission } from '@/components/pages/MilestoneSubmission';
+import { MilestoneVerificationPage } from '@/components/pages/MilestoneVerificationPage';
 import { ContractorProjectView } from '@/components/pages/ContractorProjectView';
 import { ActiveProjectsPage } from '@/components/pages/ActiveProjectsPage';
 import { AppFlowGuide } from '@/components/pages/AppFlowGuide';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const HomePage = () => (
   <div className="relative flex h-auto min-h-screen w-full flex-col">
@@ -34,24 +36,27 @@ const HomePage = () => (
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/transparency-map" element={<TransparencyMapPage />} />
-        <Route path="/project/:projectId" element={<ProjectDetailsPage />} />
-        <Route path="/governor" element={<GovernorDashboardPage />} />
-        <Route path="/governor/login" element={<GovernorLoginPage />} />
-        <Route path="/governor/dashboard" element={<GovernorMapDashboard />} />
-        <Route path="/governor/projects" element={<ActiveProjectsPage />} />
-        <Route path="/guide" element={<AppFlowGuide />} />
-        <Route path="/contractor" element={<ContractorDashboard />} />
-        <Route path="/contractor/milestone/:milestoneId" element={<MilestoneSubmission />} />
-        <Route path="/contractor/project/:projectId" element={<ContractorProjectView />} />
-      </Routes>
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/transparency-map" element={<TransparencyMapPage />} />
+          <Route path="/project/:projectId" element={<ProjectDetailsPage />} />
+          <Route path="/governor" element={<GovernorDashboardPage />} />
+          <Route path="/governor/login" element={<GovernorLoginPage />} />
+          <Route path="/governor/dashboard" element={<GovernorMapDashboard />} />
+          <Route path="/governor/projects" element={<ActiveProjectsPage />} />
+          <Route path="/guide" element={<AppFlowGuide />} />
+          <Route path="/contractor" element={<ContractorDashboard />} />
+          <Route path="/contractor/verify/:milestoneId" element={<MilestoneVerificationPage />} />
+          <Route path="/contractor/milestone/:milestoneId" element={<MilestoneSubmission />} />
+          <Route path="/contractor/project/:projectId" element={<ContractorProjectView />} />
+        </Routes>
+      </Router>
+    </ErrorBoundary>
   );
 }
 

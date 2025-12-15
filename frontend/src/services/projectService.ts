@@ -15,9 +15,26 @@ class ProjectService {
   }
 
   async getProject(projectId: number): Promise<Project> {
-    const response = await fetch(`${API_BASE_URL}/projects/${projectId}`);
-    if (!response.ok) throw new Error("Failed to fetch project");
-    return response.json();
+    if (!projectId || isNaN(projectId) || projectId <= 0) {
+      throw new Error(`Invalid project ID: ${projectId}`);
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/projects/${projectId}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch project (${response.status}): ${errorText}`);
+      }
+      
+      const data = await response.json();
+      return this.transformProject(data);
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        throw new Error('Unable to connect to server. Please check your internet connection.');
+      }
+      throw error;
+    }
   }
 
   async createProject(project: ProjectCreateRequest): Promise<any> {

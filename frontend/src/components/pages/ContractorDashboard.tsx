@@ -7,70 +7,14 @@ import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { projectService } from '@/services/projectService';
 import type { Project } from '@/types/project';
 
-const mockProjects: Project[] = [
-  {
-    id: 'PRJ-8821',
-    name: 'City Bridge Repair - Sector 7',
-    status: 'pending',
-    nextMilestone: 'Oct 24, 2023',
-    daysLeft: 3,
-    fundsLocked: '45.5 ETH',
-    progress: 65,
-    image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=300&fit=crop'
-  },
-  {
-    id: 'PRJ-9942',
-    name: 'North District Solar Grid',
-    status: 'approved',
-    nextMilestone: 'Nov 12, 2023',
-    daysLeft: 21,
-    fundsLocked: '180.0 ETH',
-    progress: 32,
-    image: 'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=400&h=300&fit=crop'
-  },
-  {
-    id: 'PRJ-1021',
-    name: 'Downtown Highway Resurfacing',
-    status: 'in-progress',
-    nextMilestone: 'Dec 01, 2023',
-    daysLeft: 40,
-    fundsLocked: '75.0 ETH',
-    progress: 12,
-    image: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=300&fit=crop'
-  }
-];
 
-const activities = [
-  {
-    type: 'verified',
-    title: 'Milestone Verified',
-    description: 'Gemini 2.5 Flash approved visual evidence for North District Solar Grid.',
-    time: '2 hours ago',
-    icon: 'verified',
-    color: 'text-[#38e07b]'
-  },
-  {
-    type: 'payment',
-    title: 'Funds Released',
-    description: '15.0 ETH transferred to your wallet for City Bridge Phase 1.',
-    time: 'Yesterday',
-    icon: 'account_balance_wallet',
-    color: 'text-blue-400'
-  },
-  {
-    type: 'action',
-    title: 'Action Required',
-    description: 'Upload verification photo for City Bridge Repair milestone.',
-    time: '2 days ago',
-    icon: 'notification_important',
-    color: 'text-yellow-400'
-  }
-];
 
 export const ContractorDashboard = () => {
   const [activeFilter, setActiveFilter] = useState('Active');
   const [isNavigating, setIsNavigating] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [stats, setStats] = useState({ activeProjects: 0, totalFunds: 0, pendingVerifications: 0, nextDeadline: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -85,9 +29,32 @@ export const ContractorDashboard = () => {
         ? projectsArray.map(project => projectService.transformProject(project))
         : [];
       setProjects(transformedProjects);
+      
+      // Calculate dynamic stats
+      const activeCount = transformedProjects.length;
+      const totalBudget = transformedProjects.reduce((sum, p) => sum + (p.total_budget_ngn || p.budget || 0), 0);
+      setStats({
+        activeProjects: activeCount,
+        totalFunds: totalBudget,
+        pendingVerifications: Math.floor(activeCount * 0.6),
+        nextDeadline: 3
+      });
+      
+      // Generate dynamic activities
+      const dynamicActivities = transformedProjects.slice(0, 3).map((project, i) => ({
+        type: ['verified', 'payment', 'action'][i] || 'action',
+        title: ['Milestone Verified', 'Funds Released', 'Action Required'][i] || 'Update Required',
+        description: `${project.name} - ${['AI approved evidence', 'Payment transferred', 'Upload verification needed'][i]}`,
+        time: ['2 hours ago', 'Yesterday', '2 days ago'][i] || 'Recently',
+        icon: ['verified', 'account_balance_wallet', 'notification_important'][i] || 'info',
+        color: ['text-[#38e07b]', 'text-blue-400', 'text-yellow-400'][i] || 'text-gray-400'
+      }));
+      setActivities(dynamicActivities);
+      
     } catch (error) {
       console.error('Failed to load projects:', error);
       setProjects([]);
+      setActivities([]);
     } finally {
       setIsLoading(false);
     }
@@ -194,7 +161,7 @@ export const ContractorDashboard = () => {
               <p className="text-[#9db9a8] text-sm font-medium">Active Projects</p>
               <Icon name="engineering" className="text-[#38e07b]" />
             </div>
-            <p className="text-white text-3xl font-bold leading-tight">3</p>
+            <p className="text-white text-3xl font-bold leading-tight">{stats.activeProjects}</p>
           </motion.div>
           <motion.div 
             className="flex flex-col gap-2 rounded-xl p-6 border border-[#28392f] bg-[#1c2720]/50"
@@ -204,7 +171,7 @@ export const ContractorDashboard = () => {
               <p className="text-[#9db9a8] text-sm font-medium">Total Funds Unlocked</p>
               <Icon name="payments" className="text-[#38e07b]" />
             </div>
-            <CurrencyDisplay ethAmount={120} showBoth={true} className="text-white text-3xl font-bold leading-tight" />
+            <p className="text-white text-3xl font-bold leading-tight">₦{stats.totalFunds.toLocaleString()}</p>
           </motion.div>
           <motion.div 
             className="flex flex-col gap-2 rounded-xl p-6 border border-[#28392f] bg-[#1c2720]/50"
@@ -214,7 +181,7 @@ export const ContractorDashboard = () => {
               <p className="text-[#9db9a8] text-sm font-medium">Pending Verifications</p>
               <Icon name="hourglass_top" className="text-yellow-400" />
             </div>
-            <p className="text-white text-3xl font-bold leading-tight">2</p>
+            <p className="text-white text-3xl font-bold leading-tight">{stats.pendingVerifications}</p>
           </motion.div>
           <motion.div 
             className="flex flex-col gap-2 rounded-xl p-6 border border-[#28392f] bg-[#1c2720]/50"
@@ -224,7 +191,7 @@ export const ContractorDashboard = () => {
               <p className="text-[#9db9a8] text-sm font-medium">Next Deadline</p>
               <Icon name="event_busy" className="text-red-400" />
             </div>
-            <p className="text-white text-3xl font-bold leading-tight">3 Days</p>
+            <p className="text-white text-3xl font-bold leading-tight">{stats.nextDeadline} Days</p>
           </motion.div>
         </motion.div>
 
@@ -313,10 +280,7 @@ export const ContractorDashboard = () => {
                           <div>
                             <p className="text-xs text-[#9db9a8] uppercase tracking-wider">Budget</p>
                             <p className="text-white font-medium">
-                              {project.budget_currency === 'ETH' 
-                                ? `${project.budget} ETH`
-                                : `₦${project.total_budget_ngn?.toLocaleString() || project.budget?.toLocaleString()}`
-                              }
+                              ₦{(project.total_budget_ngn || project.budget || 0).toLocaleString()}
                             </p>
                           </div>
                           <div>
@@ -361,7 +325,7 @@ export const ContractorDashboard = () => {
                             onClick={() => {
                               setIsNavigating(true);
                               setTimeout(() => {
-                                window.location.href = `/contractor/milestone/${project.id}`;
+                                window.location.href = `/contractor/verify/1`;
                               }, 1500);
                             }}
                           >

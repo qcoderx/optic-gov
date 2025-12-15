@@ -11,7 +11,7 @@ export const ContractorProjectView = () => {
   const handleVerifyMilestone = () => {
     setIsNavigating(true);
     setTimeout(() => {
-      window.location.href = '/contractor/milestone/bridge-phase-1';
+      window.location.href = '/contractor/verify/1';
     }, 1500);
   };
 
