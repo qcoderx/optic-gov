@@ -126,11 +126,16 @@ export async function verifyMilestoneWithBackend(request: AIAnalysisRequest): Pr
     // Submit to SUI blockchain
     try {
       const { suiService } = await import('./suiService');
-      await suiService.submitMilestone(request.project_id.toString(), {
-        index: request.milestone_index,
-        evidence_url: request.video_url,
-        verification_result: result
-      });
+      const { walletService } = await import('./walletService');
+      
+      const walletSigner = walletService.getSigner();
+      if (walletSigner) {
+        await suiService.submitMilestone(walletSigner, request.project_id.toString(), {
+          index: request.milestone_index,
+          evidence_url: request.video_url,
+          verification_result: result
+        });
+      }
     } catch (suiError) {
       console.warn('SUI blockchain submission failed:', suiError);
     }

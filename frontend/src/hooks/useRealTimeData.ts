@@ -36,8 +36,8 @@ export function useRealTimeProjects() {
       
     } catch (error) {
       console.error('Failed to fetch projects:', error);
-      setError(error instanceof Error ? error.message : 'Failed to fetch projects');
-      setProjects([]);
+      setError('Failed to load projects. Please check connection.');
+      setProjects([]); // NO MOCK DATA
     } finally {
       setLoading(false);
     }

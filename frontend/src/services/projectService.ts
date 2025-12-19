@@ -71,16 +71,24 @@ class ProjectService {
       // Also create on SUI blockchain
       try {
         const { suiService } = await import('./suiService');
-        await suiService.createProject({
-          name: project.name,
-          description: project.description,
-          budget: project.total_budget,
-          contractor: project.contractor_wallet,
-          location: {
-            lat: project.project_latitude,
-            lng: project.project_longitude
-          }
-        });
+        const { walletService } = await import('./walletService');
+        
+        // Get connected wallet signer
+        const walletSigner = walletService.getSigner();
+        if (!walletSigner) {
+          console.warn('No wallet connected for SUI creation');
+        } else {
+          await suiService.createProject(walletSigner, {
+            name: project.name,
+            description: project.description,
+            budget: project.total_budget,
+            contractor: project.contractor_wallet,
+            location: {
+              lat: project.project_latitude,
+              lng: project.project_longitude
+            }
+          });
+        }
       } catch (suiError) {
         console.warn('SUI blockchain creation failed:', suiError);
       }

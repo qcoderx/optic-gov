@@ -39,7 +39,7 @@ export class SuiService {
     }
   }
 
-  async createProject(projectData: {
+  async createProject(walletSigner: any, projectData: {
     name: string;
     description: string;
     budget: number;
@@ -49,22 +49,19 @@ export class SuiService {
     try {
       const tx = new TransactionBlock();
       
+      // Split gas coin to create payment coin
+      const [coin] = tx.splitCoins(tx.gas, [tx.pure(projectData.budget * 1000000000)]); // Convert to MIST
+      
       tx.moveCall({
-        target: `${CONTRACT_ADDRESSES.PACKAGE_ID}::project::create_project`,
+        target: `${CONTRACT_ADDRESSES.PACKAGE_ID}::optic_gov::create_project`,
         arguments: [
-          tx.pure(projectData.name),
-          tx.pure(projectData.description),
-          tx.pure(projectData.budget),
-          tx.pure(projectData.contractor),
-          tx.pure(projectData.location.lat),
-          tx.pure(projectData.location.lng)
+          coin, // Pass coin object, not number
+          tx.pure(projectData.contractor)
         ]
       });
 
-      // This would need proper wallet integration
-      const result = await this.client.signAndExecuteTransactionBlock({
+      const result = await walletSigner.signAndExecuteTransactionBlock({
         transactionBlock: tx,
-        signer: Ed25519Keypair.generate(), // Replace with actual wallet
         options: {
           showEffects: true,
           showObjectChanges: true
@@ -78,7 +75,7 @@ export class SuiService {
     }
   }
 
-  async submitMilestone(projectId: string, milestoneData: {
+  async submitMilestone(walletSigner: any, projectId: string, milestoneData: {
     index: number;
     evidence_url: string;
     verification_result: any;
@@ -87,7 +84,7 @@ export class SuiService {
       const tx = new TransactionBlock();
       
       tx.moveCall({
-        target: `${CONTRACT_ADDRESSES.PACKAGE_ID}::milestone::submit_milestone`,
+        target: `${CONTRACT_ADDRESSES.PACKAGE_ID}::optic_gov::submit_milestone`,
         arguments: [
           tx.object(projectId),
           tx.pure(milestoneData.index),
@@ -96,9 +93,8 @@ export class SuiService {
         ]
       });
 
-      const result = await this.client.signAndExecuteTransactionBlock({
+      const result = await walletSigner.signAndExecuteTransactionBlock({
         transactionBlock: tx,
-        signer: Ed25519Keypair.generate(), // Replace with actual wallet
         options: {
           showEffects: true,
           showObjectChanges: true
@@ -130,21 +126,20 @@ export class SuiService {
     }
   }
 
-  async releaseFunds(projectId: string, milestoneIndex: number): Promise<string> {
+  async releaseFunds(walletSigner: any, projectId: string, milestoneIndex: number): Promise<string> {
     try {
       const tx = new TransactionBlock();
       
       tx.moveCall({
-        target: `${CONTRACT_ADDRESSES.PACKAGE_ID}::payment::release_milestone_funds`,
+        target: `${CONTRACT_ADDRESSES.PACKAGE_ID}::optic_gov::release_payment`,
         arguments: [
           tx.object(projectId),
           tx.pure(milestoneIndex)
         ]
       });
 
-      const result = await this.client.signAndExecuteTransactionBlock({
+      const result = await walletSigner.signAndExecuteTransactionBlock({
         transactionBlock: tx,
-        signer: Ed25519Keypair.generate(), // Replace with actual wallet
         options: {
           showEffects: true,
           showObjectChanges: true

@@ -59,6 +59,16 @@ export class WalletService {
     }
   }
 
+  getSigner(): any {
+    return this.keypair ? {
+      signAndExecuteTransactionBlock: (params: any) => 
+        this.client.signAndExecuteTransactionBlock({
+          ...params,
+          signer: this.keypair
+        })
+    } : null;
+  }
+
   getAddress(): string | null {
     if (this.keypair) {
       return this.keypair.getPublicKey().toSuiAddress();
