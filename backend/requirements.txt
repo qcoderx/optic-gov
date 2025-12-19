@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-google-generativeai
+google-generativeai 
 web3
 python-multipart
 requests
@@ -13,3 +13,4 @@ exifread
 ffmpeg-python
 geopy
 cloudinary
+pysui==0.65.0

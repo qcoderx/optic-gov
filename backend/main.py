@@ -11,6 +11,12 @@ from database import get_db, Contractor, Project, Milestone
 from auth import hash_password, verify_password, create_access_token, verify_token
 from typing import List, Optional
 import requests
+
+# CORRECTED SUI IMPORTS for pysui 0.65.0
+from pysui import SuiConfig, SyncClient
+from pysui.sui.sui_crypto import recover_key_and_address
+from pysui.sui.sui_txn import SyncTransaction
+
 import tempfile
 import shutil
 import subprocess
@@ -40,16 +46,50 @@ w3 = Web3(Web3.HTTPProvider(os.getenv("SEPOLIA_RPC_URL")))
 private_key = os.getenv("ETHEREUM_PRIVATE_KEY")
 contract_address = os.getenv("CONTRACT_ADDRESS")
 
+# Currency conversion cache
+eth_ngn_cache = {"rate": None, "timestamp": None}
+CACHE_DURATION = 300  # 5 minutes
+
+def get_sui_client():
+    """Initialize SUI client with oracle keypair - CORRECTED for pysui 0.65.0"""
+    rpc_url = os.getenv("SUI_RPC_URL")
+    mnemonic = os.getenv("SUI_ORACLE_MNEMONIC")
+    
+    if not mnemonic:
+        print("❌ SUI_ORACLE_MNEMONIC not found in .env")
+        return None
+    
+    try:
+        # CORRECT: Use recover_key_and_address for pysui 0.65.0
+        _, kp, addr_obj = recover_key_and_address(
+            keytype=0,  # ED25519
+            mnemonics=mnemonic,
+            derv_path="m/44'/784'/0'/0'/0'"
+        )
+        
+        print(f"✅ SUI Oracle Address: {addr_obj.address}")
+        
+        # Initialize config with the recovered keypair
+        cfg = SuiConfig.user_config(
+            rpc_url=rpc_url,
+            prv_keys=[kp.serialize()]
+        )
+        return SyncClient(cfg)
+        
+    except Exception as e:
+        print(f"❌ Failed to initialize SUI client: {e}")
+        return None
+
+# Initialize the client ONCE
+sui_client = get_sui_client()
+
 # Verify connections on startup
 print(f"Web3 connected: {w3.is_connected()}")
 print(f"Contract address: {contract_address}")
 print(f"Oracle wallet: {os.getenv('ORACLE_WALLET_ADDRESS')}")
 print(f"Gemini API configured: {'YES' if os.getenv('GEMINI_API_KEY') else 'NO'}")
 print(f"Database URL: {os.getenv('DATABASE_URL')}")
-
-# Currency conversion cache
-eth_ngn_cache = {"rate": None, "timestamp": None}
-CACHE_DURATION = 300  # 5 minutes
+print(f"SUI Client initialized: {'YES' if sui_client else 'NO'}")
 
 def get_eth_ngn_rate():
     """Get ETH to NGN exchange rate with caching"""
@@ -89,6 +129,57 @@ def get_eth_ngn_rate():
         print(f"Error fetching exchange rate: {e}")
         # Return cached rate if available, otherwise default
         return eth_ngn_cache["rate"] if eth_ngn_cache["rate"] else 2500000  # Fallback rate
+
+async def release_funds_sui(project_object_id: str, amount_mist: int):
+    """
+    Trigger Sui contract to release funds - CORRECTED for pysui 0.65.0
+    project_object_id: The ID of the 'Project' shared object on-chain
+    amount_mist: Amount to release in MIST (1 SUI = 10^9 MIST)
+    """
+    if not sui_client:
+        print("❌ SUI client not initialized")
+        return None
+    
+    try:
+        # Use SyncTransaction (high-level API)
+        txn = SyncTransaction(client=sui_client)
+        
+        # Get environment variables
+        package_id = os.getenv("SUI_PACKAGE_ID")
+        oracle_cap_id = os.getenv("SUI_ORACLE_CAP_ID")
+        
+        if not package_id or not oracle_cap_id:
+            print("❌ Missing SUI_PACKAGE_ID or SUI_ORACLE_CAP_ID")
+            return None
+        
+        # Call the move function: release_payment(OracleCap, Project, u64)
+        txn.move_call(
+            target=f"{package_id}::optic_gov::release_payment",
+            arguments=[
+                txn.make_move_object_vec([oracle_cap_id]),  # OracleCap
+                txn.make_move_object_vec([project_object_id]),  # Project
+                amount_mist  # u64 amount
+            ],
+            type_arguments=[]
+        )
+        
+        # Execute with gas budget
+        result = txn.execute(gas_budget="10000000")
+        
+        if result.is_ok():
+            digest = result.result_data.digest
+            print(f"✅ SUI Payout Successful: {digest}")
+            return digest
+        else:
+            error_msg = result.result_string
+            print(f"❌ SUI Payout Failed: {error_msg}")
+            return None
+            
+    except Exception as e:
+        print(f"❌ SUI transaction failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 def convert_ngn_to_eth(ngn_amount: float) -> float:
     """Convert NGN amount to ETH"""
@@ -182,8 +273,6 @@ async def login_contractor(login: ContractorLogin, db: Session = Depends(get_db)
     
     access_token = create_access_token(data={"sub": contractor.wallet_address})
     return {"access_token": access_token, "token_type": "bearer"}
-
-
 
 @app.post("/convert-currency")
 async def convert_currency(request: ConvertRequest):
@@ -492,9 +581,23 @@ Return ONLY a JSON object:
         # Parse Gemini response
         result = json.loads(response.text)
         
-        # If verified, trigger blockchain transaction
         if result["verified"] and result["confidence_score"] >= 95:
-            await release_funds(project.on_chain_id, request.milestone_index)
+            # 1. Release Ethereum Funds
+            eth_tx = await release_funds(project.on_chain_id, request.milestone_index)
+            result["ethereum_transaction"] = eth_tx
+            
+            # 2. Release Sui Funds (if configured)
+            if hasattr(project, 'sui_project_id') and project.sui_project_id:
+                milestones = db.query(Milestone).filter(Milestone.project_id == project.id).all()
+                milestone_count = len(milestones) if milestones else 1
+                
+                # Divide project budget by number of milestones
+                amount_sui = project.total_budget / milestone_count
+                payout_mist = int(amount_sui * 1_000_000_000)
+                
+                sui_tx = await release_funds_sui(project.sui_project_id, payout_mist)
+                if sui_tx:
+                    result["sui_transaction"] = sui_tx
         
         return VerificationResponse(**result)
         
@@ -541,6 +644,7 @@ async def release_funds(project_id: int, milestone_index: int):
         
     except Exception as e:
         print(f"Blockchain transaction failed: {e}")
+        return None
 
 @app.get("/")
 async def root():

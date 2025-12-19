@@ -1,6 +1,5 @@
-[info] [12:24:04] Package published to chain with digest:  RTTB2HSmN6RCdrvKYUwHHNtQNCaL8PMhrJ6x1H3XmWQ
-[info] [12:24:05] https://suiscan.xyz/testnet/tx/RTTB2HSmN6RCdrvKYUwHHNtQNCaL8PMhrJ6x1H3XmWQ
-[info] [12:24:06] Executed successfully
-[info] [12:24:08] Uploaded file [deploy/0x93...5fa5-published.json] successfully!
-
-0xee53988c4003adec6a128b400c2b201429d00e6c636b5d2aa17c839f920b357e
+[info] [01:01:43] Package published to chain with digest:  6zv4U9H1yoh9PHocKoiN9nMRcxZGZfjyYS8FA5uzZKpi
+[info] [01:01:43] https://suiscan.xyz/testnet/tx/6zv4U9H1yoh9PHocKoiN9nMRcxZGZfjyYS8FA5uzZKpi
+[info] [01:01:43] Executed successfully
+[info] [01:01:46] Uploaded file [deploy/0xd3...ef2d-published.json] successfully!
+0x0142d8c6b683cc1df75ec8c568658100e9c6e0a5a590f900adf2a1ebfedbdd21
