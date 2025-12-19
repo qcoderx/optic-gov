@@ -7,9 +7,9 @@ const SUI_CLIENT = new SuiClient({ url: getFullnodeUrl(NETWORK) });
 
 // Contract addresses - update these with your deployed contract addresses
 const CONTRACT_ADDRESSES = {
-  PACKAGE_ID: process.env.VITE_SUI_PACKAGE_ID || '',
-  PROJECT_REGISTRY: process.env.VITE_PROJECT_REGISTRY || '',
-  MILESTONE_MANAGER: process.env.VITE_MILESTONE_MANAGER || ''
+  PACKAGE_ID: import.meta.env.VITE_SUI_PACKAGE_ID || '',
+  PROJECT_REGISTRY: import.meta.env.VITE_PROJECT_REGISTRY || '',
+  MILESTONE_MANAGER: import.meta.env.VITE_MILESTONE_MANAGER || ''
 };
 
 export class SuiService {

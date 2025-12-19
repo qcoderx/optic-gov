@@ -38,27 +38,12 @@ export const MilestoneSubmission = () => {
         setProject(projectData);
         
         // Load real milestone data from SUI blockchain
-        try {
-          const { suiService } = await import('@/services/suiService');
-          const milestones = await suiService.getProjectMilestones(projectId.toString());
-          const currentMilestone = milestones.find(m => m.index === 1) || {
-            id: 1,
-            title: 'Foundation & Structure',
-            description: 'Complete foundation work and basic structural framework',
-            criteria: 'Video must show completed foundation with visible rebar and concrete work',
-            progress: 40
-          };
-          setMilestone(currentMilestone);
-        } catch (suiError) {
-          console.warn('SUI milestone fetch failed, using fallback:', suiError);
-          setMilestone({
-            id: 1,
-            title: 'Foundation & Structure',
-            description: 'Complete foundation work and basic structural framework',
-            criteria: 'Video must show completed foundation with visible rebar and concrete work',
-            progress: 40
-          });
+        const { suiService } = await import('@/services/suiService');
+        const milestones = await suiService.getProjectMilestones(projectId.toString());
+        if (!milestones || milestones.length === 0) {
+          throw new Error('No milestones found for this project');
         }
+        setMilestone(milestones[0]);
       } else {
         throw new Error('No milestone ID provided');
       }
@@ -89,14 +74,12 @@ export const MilestoneSubmission = () => {
       }
       
       const data = await response.json();
-      return data.video_url || data.url || 'mock-video-url';
+      if (!data.video_url && !data.url) {
+        throw new Error('No video URL returned from server');
+      }
+      return data.video_url || data.url;
     } catch (error) {
       console.error('Upload error:', error);
-      // For development, return a mock URL if upload fails
-      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        console.warn('Backend unavailable, using mock URL for development');
-        return `mock-video-url-${Date.now()}`;
-      }
       throw error;
     }
   };
@@ -334,14 +317,14 @@ export const MilestoneSubmission = () => {
                     <label className="text-xs text-[#9cba9c] uppercase font-bold tracking-wider">GPS Coordinates (Auto)</label>
                     <div className="flex items-center gap-2 bg-[#0a0a0a] border border-[#283928] rounded h-12 px-4 text-gray-400 font-mono text-sm">
                       <Icon name="my_location" size="sm" />
-                      <span>34.0522° N, 118.2437° W</span>
+                      <span>{project?.project_latitude?.toFixed(4)}° N, {project?.project_longitude?.toFixed(4)}° E</span>
                     </div>
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className="text-xs text-[#9cba9c] uppercase font-bold tracking-wider">Timestamp (Immutable)</label>
                     <div className="flex items-center gap-2 bg-[#0a0a0a] border border-[#283928] rounded h-12 px-4 text-gray-400 font-mono text-sm">
                       <Icon name="schedule" size="sm" />
-                      <span>2023-10-24 T14:30:05Z</span>
+                      <span>{new Date().toISOString()}</span>
                     </div>
                   </div>
                 </div>
