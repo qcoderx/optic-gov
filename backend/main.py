@@ -570,14 +570,13 @@ Return ONLY a JSON object:
         result = json.loads(response.text)
         
         if result["verified"] and result["confidence_score"] >= 95:
-            # Priority: Sui first, then Ethereum
+            # CRITICAL: SUI IS PRIORITY - Check Sui first, only use Ethereum as fallback
             
-            # 1. Release Sui Funds (if configured) - PRIORITY
+            # 1. PRIORITY: Use Sui if on_chain_id exists (Sui Object ID)
             if hasattr(project, 'on_chain_id') and project.on_chain_id:
                 milestones = db.query(Milestone).filter(Milestone.project_id == project.id).all()
                 milestone_count = len(milestones) if milestones else 1
                 
-                # Divide project budget by number of milestones
                 amount_sui = project.total_budget / milestone_count
                 payout_mist = int(amount_sui * 1_000_000_000)
                 
@@ -585,15 +584,18 @@ Return ONLY a JSON object:
                 if sui_tx:
                     result["sui_transaction"] = sui_tx
                     result["primary_chain"] = "sui"
-            
-            # 2. Release Ethereum Funds (if no Sui or as secondary)
-            if hasattr(project, 'on_chain_id') and project.on_chain_id:
-                eth_tx = await release_funds(project.on_chain_id, request.milestone_index)
+                else:
+                    result["error"] = "Sui transaction failed"
+            # 2. FALLBACK: Only use Ethereum if Sui is not configured
+            elif hasattr(project, 'sui_project_id') and project.sui_project_id:
+                eth_tx = await release_funds(int(project.sui_project_id), request.milestone_index)
                 if eth_tx:
                     result["ethereum_transaction"] = eth_tx
-                    # Only mark as primary if Sui wasn't used
-                    if "primary_chain" not in result:
-                        result["primary_chain"] = "ethereum"
+                    result["primary_chain"] = "ethereum"
+                else:
+                    result["error"] = "Ethereum transaction failed"
+            else:
+                result["error"] = "No blockchain configuration found"
         
         return VerificationResponse(**result)
         
