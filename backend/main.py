@@ -582,11 +582,9 @@ Return ONLY a JSON object:
         result = json.loads(response.text)
         
         if result["verified"] and result["confidence_score"] >= 95:
-            # 1. Release Ethereum Funds
-            eth_tx = await release_funds(project.on_chain_id, request.milestone_index)
-            result["ethereum_transaction"] = eth_tx
+            # Priority: Sui first, then Ethereum
             
-            # 2. Release Sui Funds (if configured)
+            # 1. Release Sui Funds (if configured) - PRIORITY
             if hasattr(project, 'sui_project_id') and project.sui_project_id:
                 milestones = db.query(Milestone).filter(Milestone.project_id == project.id).all()
                 milestone_count = len(milestones) if milestones else 1
@@ -598,6 +596,16 @@ Return ONLY a JSON object:
                 sui_tx = await release_funds_sui(project.sui_project_id, payout_mist)
                 if sui_tx:
                     result["sui_transaction"] = sui_tx
+                    result["primary_chain"] = "sui"
+            
+            # 2. Release Ethereum Funds (if no Sui or as secondary)
+            if hasattr(project, 'on_chain_id') and project.on_chain_id:
+                eth_tx = await release_funds(project.on_chain_id, request.milestone_index)
+                if eth_tx:
+                    result["ethereum_transaction"] = eth_tx
+                    # Only mark as primary if Sui wasn't used
+                    if "primary_chain" not in result:
+                        result["primary_chain"] = "ethereum"
         
         return VerificationResponse(**result)
         
