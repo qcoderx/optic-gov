@@ -80,8 +80,22 @@ export const MilestoneVerificationPage = () => {
             <div className="w-2 h-2 rounded-full bg-[#0df20d]" />
             Mainnet Live
           </div>
-          <button className="bg-[#283928] border border-[#0df20d]/20 hover:border-[#0df20d]/50 transition-colors text-white text-sm font-bold px-4 py-2 rounded">
-            0x83...12F4
+          <button 
+            className="bg-[#283928] border border-[#0df20d]/20 hover:border-[#0df20d]/50 transition-colors text-white text-sm font-bold px-4 py-2 rounded"
+            onClick={async () => {
+              const { walletService } = await import('@/services/walletService');
+              try {
+                await walletService.connectWallet();
+                window.location.reload();
+              } catch (err) {
+                console.error('Wallet connection failed:', err);
+              }
+            }}
+          >
+            {(() => {
+              const addr = localStorage.getItem('sui_wallet_address');
+              return addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : 'Connect Wallet';
+            })()}
           </button>
         </div>
       </motion.header>
