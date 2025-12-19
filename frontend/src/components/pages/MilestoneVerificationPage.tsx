@@ -3,20 +3,58 @@ import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { projectService } from '@/services/projectService';
+import { verifyMilestoneWithBackend } from '@/services/aiService';
 
 export const MilestoneVerificationPage = () => {
   const { milestoneId } = useParams();
   const [isVerifying, setIsVerifying] = useState(false);
+  const [project, setProject] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleVerifyMilestone = () => {
-    setIsVerifying(true);
-    // Simulate verification process
-    setTimeout(() => {
-      setIsVerifying(false);
-      // Navigate to actual milestone submission
-      window.location.href = `/contractor/milestone/${milestoneId}`;
-    }, 2000);
+  useEffect(() => {
+    loadProjectData();
+  }, [milestoneId]);
+
+  const loadProjectData = async () => {
+    try {
+      if (!milestoneId) throw new Error('No milestone ID provided');
+      const projectId = parseInt(milestoneId);
+      if (isNaN(projectId)) throw new Error('Invalid project ID');
+      
+      const projectData = await projectService.getProject(projectId);
+      setProject(projectData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load project');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleVerifyMilestone = async () => {
+    if (!project) return;
+    
+    setIsVerifying(true);
+    try {
+      // Call real backend verification
+      await verifyMilestoneWithBackend({
+        video_url: 'pending_upload',
+        milestone_criteria: 'Foundation and structural work',
+        project_id: project.id,
+        milestone_index: 1
+      });
+      
+      // Navigate to milestone submission page
+      window.location.href = `/contractor/milestone/${milestoneId}`;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Verification failed');
+      setIsVerifying(false);
+    }
+  };
+
+  if (loading) return <div className="bg-[#0a0a0a] text-white min-h-screen flex items-center justify-center">Loading...</div>;
+  if (error) return <div className="bg-[#0a0a0a] text-white min-h-screen flex items-center justify-center">Error: {error}</div>;
 
   return (
     <div className="bg-[#0a0a0a] text-white min-h-screen flex flex-col font-display">
@@ -68,10 +106,10 @@ export const MilestoneVerificationPage = () => {
             className="text-center space-y-2"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
+            transition={{ duration: 0.6 }}
           >
-            <h2 className="text-4xl font-bold text-white">Bridge Phase 1</h2>
-            <p className="text-gray-400">Austin, TX Infrastructure Zone B</p>
+            <h2 className="text-4xl font-bold text-white">{project?.name || 'Loading...'}</h2>
+            <p className="text-gray-400">{project?.description || 'Loading project details...'}</p>
           </motion.div>
 
           {/* Funds Card */}
@@ -83,9 +121,9 @@ export const MilestoneVerificationPage = () => {
           >
             <p className="text-gray-400 text-sm uppercase tracking-wider mb-4">Funds Locked in Smart Contract</p>
             <div className="space-y-2">
-              <div className="text-6xl font-bold text-white">5.0</div>
+              <div className="text-6xl font-bold text-white">{project?.total_budget_eth?.toFixed(2) || '0.00'}</div>
               <div className="text-[#0df20d] text-xl font-bold">ETH</div>
-              <div className="text-gray-400">≈ $12,450.00 USD</div>
+              <div className="text-gray-400">≈ ₦{project?.total_budget_ngn?.toLocaleString() || '0'}</div>
             </div>
           </motion.div>
 

@@ -43,23 +43,17 @@ class AIService {
     const formData = new FormData();
     formData.append('video', file);
     
-    try {
-      const response = await fetch(`${this.baseUrl}/upload-video`, {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      return data.video_url || data.url;
-    } catch (error) {
-      console.error('Upload error:', error);
-      // Return mock URL for development
-      return `mock-video-${Date.now()}.mp4`;
+    const response = await fetch(`${this.baseUrl}/upload-video`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.status}`);
     }
+    
+    const data = await response.json();
+    return data.video_url || data.url;
   }
 
   private getMockVerification(): VerificationResult {
@@ -67,22 +61,6 @@ class AIService {
     throw new Error('Mock verification disabled - use real backend only');
   }
 
-  // Real-time analysis streaming (mock)
-  async *streamAnalysis(videoUrl: string): AsyncGenerator<string, void, unknown> {
-    const steps = [
-      "🔍 Initializing Gemini 2.5 Flash...",
-      "📹 Processing video frames...",
-      "🏗️ Detecting construction elements...",
-      "📏 Measuring structural compliance...",
-      "🔬 Analyzing material quality...",
-      "✅ Generating verification report..."
-    ];
-
-    for (const step of steps) {
-      yield step;
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
-    }
-  }
 }
 
 export const aiService = new AIService();
