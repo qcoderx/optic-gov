@@ -5,12 +5,21 @@ module blockchain::optic_gov {
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
     use sui::tx_context::{Self, TxContext};
+    use sui::event;
     use std::string::{String};
 
     // --- Errors ---
     const EInvalidAmount: u64 = 1;
     const EInsufficientFunds: u64 = 2;
     const ENotContractor: u64 = 3;
+
+    // --- Events ---
+    struct ProjectCreated has copy, drop {
+        project_id: address,
+        funder: address,
+        contractor: address,
+        budget: u64,
+    }
 
     // ====================================================================
     // 1. OBJECTS
@@ -71,6 +80,15 @@ module blockchain::optic_gov {
             funds_released: 0,
             latest_evidence_ipfs: std::string::utf8(b"None"),
         };
+
+        let project_id = object::uid_to_address(&project.id);
+        
+        event::emit(ProjectCreated {
+            project_id,
+            funder: tx_context::sender(ctx),
+            contractor,
+            budget: amount,
+        });
 
         // Make the project visible to everyone (including the Oracle)
         transfer::share_object(project);

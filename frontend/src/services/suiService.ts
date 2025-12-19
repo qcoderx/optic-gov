@@ -21,18 +21,25 @@ export class SuiService {
 
   async getProjects(): Promise<any[]> {
     try {
-      const response = await this.client.getOwnedObjects({
-        owner: CONTRACT_ADDRESSES.PROJECT_REGISTRY,
-        filter: {
-          StructType: `${CONTRACT_ADDRESSES.PACKAGE_ID}::project::Project`
-        },
-        options: {
-          showContent: true,
-          showType: true
+      const events = await this.client.queryEvents({
+        query: {
+          MoveEventType: `${CONTRACT_ADDRESSES.PACKAGE_ID}::optic_gov::ProjectCreated`
         }
       });
 
-      return response.data.map(obj => obj.data?.content) || [];
+      const projectIds = events.data.map((event: any) => event.parsedJson.project_id);
+      
+      const projects = await Promise.all(
+        projectIds.map(async (id: string) => {
+          const obj = await this.client.getObject({
+            id,
+            options: { showContent: true, showType: true }
+          });
+          return obj.data?.content;
+        })
+      );
+
+      return projects.filter(p => p !== undefined);
     } catch (error) {
       console.error('Error fetching projects from SUI:', error);
       throw error;
@@ -49,13 +56,12 @@ export class SuiService {
     try {
       const tx = new TransactionBlock();
       
-      // Split gas coin to create payment coin
-      const [coin] = tx.splitCoins(tx.gas, [tx.pure(projectData.budget * 1000000000)]); // Convert to MIST
+      const [coin] = tx.splitCoins(tx.gas, [tx.pure(projectData.budget * 1000000000)]);
       
       tx.moveCall({
         target: `${CONTRACT_ADDRESSES.PACKAGE_ID}::optic_gov::create_project`,
         arguments: [
-          coin, // Pass coin object, not number
+          coin,
           tx.pure(projectData.contractor)
         ]
       });
@@ -68,7 +74,15 @@ export class SuiService {
         }
       });
 
-      return result.digest;
+      const createdObject = result.objectChanges?.find(
+        (change: any) => change.type === 'created' && change.objectType.includes('::optic_gov::Project')
+      );
+
+      if (!createdObject) {
+        throw new Error('Failed to find created project object');
+      }
+
+      return createdObject.objectId;
     } catch (error) {
       console.error('Error creating project on SUI:', error);
       throw error;
