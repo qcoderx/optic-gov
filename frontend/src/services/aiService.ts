@@ -90,9 +90,7 @@ export async function verifyMilestoneWithBackend(request: AIAnalysisRequest): Pr
       const walletSigner = walletService.getSigner();
       if (walletSigner) {
         await suiService.submitMilestone(walletSigner, request.project_id.toString(), {
-          index: request.milestone_index,
-          evidence_url: request.video_url,
-          verification_result: result
+          evidence_url: request.video_url
         });
       }
     } catch (suiError) {

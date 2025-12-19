@@ -26,7 +26,7 @@ try:
         
         if result.fetchone() is None:
             print("Adding on_chain_id column to projects table...")
-            conn.execute(text("ALTER TABLE projects ADD COLUMN on_chain_id INTEGER"))
+            conn.execute(text("ALTER TABLE projects ADD COLUMN on_chain_id VARCHAR(255)"))
             conn.commit()
             print("Column added successfully!")
         else:

@@ -76,20 +76,17 @@ export class SuiService {
   }
 
   async submitMilestone(walletSigner: any, projectId: string, milestoneData: {
-    index: number;
     evidence_url: string;
-    verification_result: any;
   }): Promise<string> {
     try {
       const tx = new TransactionBlock();
       
+      // Match blockchain.move submit_evidence function signature
       tx.moveCall({
-        target: `${CONTRACT_ADDRESSES.PACKAGE_ID}::optic_gov::submit_milestone`,
+        target: `${CONTRACT_ADDRESSES.PACKAGE_ID}::optic_gov::submit_evidence`,
         arguments: [
           tx.object(projectId),
-          tx.pure(milestoneData.index),
-          tx.pure(milestoneData.evidence_url),
-          tx.pure(JSON.stringify(milestoneData.verification_result))
+          tx.pure(milestoneData.evidence_url) // Only send IPFS hash
         ]
       });
 
@@ -127,30 +124,9 @@ export class SuiService {
   }
 
   async releaseFunds(walletSigner: any, projectId: string, milestoneIndex: number): Promise<string> {
-    try {
-      const tx = new TransactionBlock();
-      
-      tx.moveCall({
-        target: `${CONTRACT_ADDRESSES.PACKAGE_ID}::optic_gov::release_payment`,
-        arguments: [
-          tx.object(projectId),
-          tx.pure(milestoneIndex)
-        ]
-      });
-
-      const result = await walletSigner.signAndExecuteTransactionBlock({
-        transactionBlock: tx,
-        options: {
-          showEffects: true,
-          showObjectChanges: true
-        }
-      });
-
-      return result.digest;
-    } catch (error) {
-      console.error('Error releasing funds on SUI:', error);
-      throw error;
-    }
+    // WARNING: This function requires OracleCap which only the backend holds
+    // This should ONLY be called by the backend, not the frontend
+    throw new Error('releaseFunds can only be called by the backend Oracle - use backend API instead');
   }
 }
 

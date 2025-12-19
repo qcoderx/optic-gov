@@ -219,7 +219,7 @@ class ProjectCreate(BaseModel):
     project_longitude: float
     location_tolerance_km: float = 1.0
     gov_wallet: str
-    on_chain_id: int
+    on_chain_id: str  # Changed from int to str for Sui Object IDs
 
 class MilestoneGenerate(BaseModel):
     project_description: str
@@ -320,23 +320,11 @@ Return ONLY a JSON array like: ["Foundation excavation", "Concrete pouring", "St
             json_text = response_text[start:end]
             milestones = json.loads(json_text)
         else:
-            # Fallback milestones if AI fails
-            milestones = [
-                "Site preparation and excavation",
-                "Foundation pouring and curing", 
-                "Structural framework installation",
-                "Final inspection and cleanup"
-            ]
+            raise ValueError('AI did not return valid JSON')
         
         return {"milestones": milestones}
     except Exception as e:
-        # Return default milestones if anything fails
-        return {"milestones": [
-            "Site preparation and excavation",
-            "Foundation pouring and curing",
-            "Structural framework installation", 
-            "Final inspection and cleanup"
-        ]}
+        raise HTTPException(status_code=500, detail=f"AI milestone generation failed: {str(e)}")
 
 @app.post("/create-project")
 async def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
