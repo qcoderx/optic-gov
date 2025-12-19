@@ -201,7 +201,7 @@ export const ContractorProjectView = () => {
             <div className="flex items-start gap-2 px-4 py-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
               <Icon name="info" className="text-blue-400 shrink-0 text-lg mt-0.5" />
               <p className="text-xs text-blue-200 leading-relaxed">
-                Verification requires a 10s video scan of the site. Gemini 2.5 Flash will analyze the footage for concrete curing status.
+                Verification requires a 10s video scan of the site. Gemini 3 Flash will analyze the footage for concrete curing status.
               </p>
             </div>
           </motion.div>

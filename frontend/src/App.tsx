@@ -20,6 +20,7 @@ import { ContractorProjectView } from '@/components/pages/ContractorProjectView'
 import { ActiveProjectsPage } from '@/components/pages/ActiveProjectsPage';
 import { AppFlowGuide } from '@/components/pages/AppFlowGuide';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { ConnectionStatus } from '@/components/ui/ConnectionStatus';
 
 const HomePage = () => (
   <div className="relative flex h-auto min-h-screen w-full flex-col">
@@ -38,6 +39,7 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
+        <ConnectionStatus />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/register" element={<RegisterPage />} />

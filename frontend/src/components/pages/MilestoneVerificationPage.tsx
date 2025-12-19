@@ -145,7 +145,7 @@ export const MilestoneVerificationPage = () => {
               )}
             </Button>
             <p className="text-gray-400 text-sm mt-4 max-w-md mx-auto">
-              Verification requires a 10s video scan of the site. Gemini 2.5 Flash will analyze the footage for concrete curing status.
+              Verification requires a 10s video scan of the site. Gemini 3 Flash will analyze the footage for concrete curing status.
             </p>
           </motion.div>
 

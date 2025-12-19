@@ -9,9 +9,18 @@ import type {
 
 class ProjectService {
   async getAllProjects(): Promise<ProjectsResponse> {
-    const response = await fetch(`${API_BASE_URL}/projects`);
-    if (!response.ok) throw new Error("Failed to fetch projects");
-    return response.json();
+    try {
+      const response = await fetch(`${API_BASE_URL}/projects`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}: Failed to fetch projects`);
+      const data = await response.json();
+      return {
+        projects: data.projects || data || [],
+        exchange_rate: data.exchange_rate || 1600
+      };
+    } catch (error) {
+      console.error('ProjectService.getAllProjects error:', error);
+      throw new Error('Unable to connect to backend. Please check if the server is running.');
+    }
   }
 
   async getProject(projectId: number): Promise<Project> {
@@ -38,24 +47,49 @@ class ProjectService {
   }
 
   async createProject(project: ProjectCreateRequest): Promise<any> {
-    // Ensure budget_currency is properly set
-    const projectData = {
-      ...project,
-      budget_currency: project.budget_currency || "NGN",
-    };
+    try {
+      const projectData = {
+        ...project,
+        budget_currency: project.budget_currency || "NGN",
+      };
 
-    const response = await fetch(`${API_BASE_URL}/create-project`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(projectData),
-    });
-    if (!response.ok) {
-      const errorData = await response.text();
-      throw new Error(`Failed to create project: ${errorData}`);
+      const response = await fetch(`${API_BASE_URL}/create-project`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(projectData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorData}`);
+      }
+      
+      const result = await response.json();
+      
+      // Also create on SUI blockchain
+      try {
+        const { suiService } = await import('./suiService');
+        await suiService.createProject({
+          name: project.name,
+          description: project.description,
+          budget: project.total_budget,
+          contractor: project.contractor_wallet,
+          location: {
+            lat: project.project_latitude,
+            lng: project.project_longitude
+          }
+        });
+      } catch (suiError) {
+        console.warn('SUI blockchain creation failed:', suiError);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('ProjectService.createProject error:', error);
+      throw error;
     }
-    return response.json();
   }
 
   async updateProject(

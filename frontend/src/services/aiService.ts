@@ -105,3 +105,39 @@ class AIService {
 }
 
 export const aiService = new AIService();
+
+// Real-time milestone verification
+export async function verifyMilestoneWithBackend(request: AIAnalysisRequest): Promise<VerificationResult> {
+  try {
+    const response = await fetch('https://optic-gov.onrender.com/verify-milestone', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Verification failed: HTTP ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    // Submit to SUI blockchain
+    try {
+      const { suiService } = await import('./suiService');
+      await suiService.submitMilestone(request.project_id.toString(), {
+        index: request.milestone_index,
+        evidence_url: request.video_url,
+        verification_result: result
+      });
+    } catch (suiError) {
+      console.warn('SUI blockchain submission failed:', suiError);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Real-time verification failed:', error);
+    throw error;
+  }
+}

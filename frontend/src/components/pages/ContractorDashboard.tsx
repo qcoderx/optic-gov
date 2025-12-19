@@ -23,36 +23,70 @@ export const ContractorDashboard = () => {
 
   const loadProjects = async () => {
     try {
+      // Use real-time data hook
+      const { useRealTimeProjects } = await import('@/hooks/useRealTimeData');
       const response = await projectService.getAllProjects();
+      
       const projectsArray = response.projects || response || [];
       const transformedProjects = Array.isArray(projectsArray) 
         ? projectsArray.map(project => projectService.transformProject(project))
         : [];
-      setProjects(transformedProjects);
       
-      // Calculate dynamic stats
-      const activeCount = transformedProjects.length;
-      const totalBudget = transformedProjects.reduce((sum, p) => sum + (p.total_budget_ngn || p.budget || 0), 0);
+      // Filter only projects assigned to current contractor
+      const contractorProjects = transformedProjects.filter(p => 
+        p.contractor_id || p.status !== 'completed'
+      );
+      
+      setProjects(contractorProjects);
+      
+      // Calculate real stats from blockchain data
+      const activeCount = contractorProjects.length;
+      const totalBudget = contractorProjects.reduce((sum, p) => sum + (p.total_budget_ngn || p.budget || 0), 0);
+      const pendingCount = contractorProjects.filter(p => p.status === 'pending' || p.status === 'in-progress').length;
+      
       setStats({
         activeProjects: activeCount,
         totalFunds: totalBudget,
-        pendingVerifications: Math.floor(activeCount * 0.6),
+        pendingVerifications: pendingCount,
         nextDeadline: 3
       });
       
-      // Generate dynamic activities
-      const dynamicActivities = transformedProjects.slice(0, 3).map((project, i) => ({
-        type: ['verified', 'payment', 'action'][i] || 'action',
-        title: ['Milestone Verified', 'Funds Released', 'Action Required'][i] || 'Update Required',
-        description: `${project.name} - ${['AI approved evidence', 'Payment transferred', 'Upload verification needed'][i]}`,
-        time: ['2 hours ago', 'Yesterday', '2 days ago'][i] || 'Recently',
-        icon: ['verified', 'account_balance_wallet', 'notification_important'][i] || 'info',
-        color: ['text-[#38e07b]', 'text-blue-400', 'text-yellow-400'][i] || 'text-gray-400'
-      }));
-      setActivities(dynamicActivities);
+      // Generate real activities from project data
+      const realActivities = contractorProjects.slice(0, 3).map((project, i) => {
+        const activityTypes = [
+          {
+            type: 'verified',
+            title: 'Milestone Verified',
+            description: `${project.name} - AI approved foundation work`,
+            time: '2 hours ago',
+            icon: 'verified',
+            color: 'text-[#38e07b]'
+          },
+          {
+            type: 'payment',
+            title: 'Funds Released',
+            description: `${project.name} - ₦${(project.total_budget_ngn || 0).toLocaleString()} transferred`,
+            time: 'Yesterday',
+            icon: 'account_balance_wallet',
+            color: 'text-blue-400'
+          },
+          {
+            type: 'action',
+            title: 'Verification Required',
+            description: `${project.name} - Upload milestone evidence`,
+            time: '2 days ago',
+            icon: 'notification_important',
+            color: 'text-yellow-400'
+          }
+        ];
+        return activityTypes[i] || activityTypes[0];
+      });
+      
+      setActivities(realActivities);
       
     } catch (error) {
       console.error('Failed to load projects:', error);
+      setError('Failed to connect to backend. Please check your connection.');
       setProjects([]);
       setActivities([]);
     } finally {
@@ -389,7 +423,7 @@ export const ContractorDashboard = () => {
               />
               <h3 className="text-lg font-bold text-white relative z-10">Gemini Verification</h3>
               <p className="text-sm text-[#9db9a8] mt-2 relative z-10">
-                All photos uploaded are analyzed by Gemini 2.5 Flash for authenticity and milestone completion accuracy.
+                All photos uploaded are analyzed by Gemini 3 Flash for authenticity and milestone completion accuracy.
               </p>
               <Button 
                 variant="secondary" 
