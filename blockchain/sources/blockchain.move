@@ -42,13 +42,10 @@ module blockchain::optic_gov {
 
     /// Runs once when the contract is published.
     fun init(ctx: &mut TxContext) {
-        // This is your Oracle Wallet Address from the .env
-        let oracle_address = @0x148ba9e6f4600094f3a680b935116dff42901212; 
-        
         let cap = OracleCap { id: object::new(ctx) };
         
-        // Send the "Key" to the Oracle
-        transfer::transfer(cap, oracle_address);
+        // Send the "Key" to the deployer (whoever deployed the contract)
+        transfer::transfer(cap, tx_context::sender(ctx));
     }
 
     // ====================================================================

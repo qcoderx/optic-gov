@@ -585,7 +585,7 @@ Return ONLY a JSON object:
             # Priority: Sui first, then Ethereum
             
             # 1. Release Sui Funds (if configured) - PRIORITY
-            if hasattr(project, 'sui_project_id') and project.sui_project_id:
+            if hasattr(project, 'on_chain_id') and project.on_chain_id:
                 milestones = db.query(Milestone).filter(Milestone.project_id == project.id).all()
                 milestone_count = len(milestones) if milestones else 1
                 
@@ -593,7 +593,7 @@ Return ONLY a JSON object:
                 amount_sui = project.total_budget / milestone_count
                 payout_mist = int(amount_sui * 1_000_000_000)
                 
-                sui_tx = await release_funds_sui(project.sui_project_id, payout_mist)
+                sui_tx = await release_funds_sui(str(project.on_chain_id), payout_mist)
                 if sui_tx:
                     result["sui_transaction"] = sui_tx
                     result["primary_chain"] = "sui"

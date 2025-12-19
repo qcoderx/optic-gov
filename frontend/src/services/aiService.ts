@@ -35,8 +35,7 @@ class AIService {
       return await response.json();
     } catch (error) {
       console.error('AI verification error:', error);
-      // Mock response for development
-      return this.getMockVerification();
+      throw error; // No mock fallback
     }
   }
 
@@ -64,26 +63,8 @@ class AIService {
   }
 
   private getMockVerification(): VerificationResult {
-    const mockResults = [
-      {
-        verified: true,
-        confidence: 0.92,
-        reasoning: "Foundation work appears complete with visible concrete pour and rebar placement matching milestone requirements.",
-        detected_elements: ["concrete_foundation", "rebar_structure", "proper_dimensions", "quality_materials"],
-        compliance_score: 0.89,
-        timestamp: new Date().toISOString()
-      },
-      {
-        verified: false,
-        confidence: 0.76,
-        reasoning: "Incomplete structural work detected. Missing required safety barriers and incomplete concrete curing.",
-        detected_elements: ["partial_foundation", "missing_safety_equipment", "incomplete_curing"],
-        compliance_score: 0.45,
-        timestamp: new Date().toISOString()
-      }
-    ];
-    
-    return mockResults[Math.floor(Math.random() * mockResults.length)];
+    // This method is removed - no mock data allowed
+    throw new Error('Mock verification disabled - use real backend only');
   }
 
   // Real-time analysis streaming (mock)
