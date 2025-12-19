@@ -73,12 +73,11 @@ class ProjectService {
         const { suiService } = await import('./suiService');
         const { walletService } = await import('./walletService');
         
-        // Get connected wallet signer
         const walletSigner = walletService.getSigner();
         if (!walletSigner) {
           console.warn('No wallet connected for SUI creation');
         } else {
-          await suiService.createProject(walletSigner, {
+          const objectId = await suiService.createProject(walletSigner, {
             name: project.name,
             description: project.description,
             budget: project.total_budget,
@@ -87,6 +86,13 @@ class ProjectService {
               lat: project.project_latitude,
               lng: project.project_longitude
             }
+          });
+          
+          // Save the on-chain ID back to the database
+          await fetch(`${API_BASE_URL}/projects/${result.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ on_chain_id: objectId })
           });
         }
       } catch (suiError) {
