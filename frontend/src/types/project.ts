@@ -21,7 +21,8 @@ export interface Project {
   contractor_id?: number;
   ai_generated?: boolean;
   gov_wallet?: string;
-  on_chain_id?: number;
+  on_chain_id?: string; // CRITICAL: Sui Object IDs are hex strings, not numbers
+  contractor_wallet?: string; // Sui address for contractor payouts
   created_at?: string;
   exchange_rate?: number;
   // ADD THIS FIELD
@@ -51,14 +52,14 @@ export interface ProjectCreateRequest {
   description: string;
   total_budget: number;
   budget_currency: 'NGN' | 'ETH';
-  contractor_wallet: string;
+  contractor_wallet: string; // MUST be valid Sui address
   use_ai_milestones: boolean;
   manual_milestones?: string[];
   project_latitude: number;
   project_longitude: number;
   location_tolerance_km?: number;
   gov_wallet: string;
-  on_chain_id: number;
+  on_chain_id: string; // CRITICAL: Sui Object IDs are hex strings
 }
 
 export interface MapState {
