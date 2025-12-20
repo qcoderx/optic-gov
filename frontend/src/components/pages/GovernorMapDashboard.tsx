@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '@/components/ui/Icon';
-
 import { LeafletMap } from '@/components/ui/LeafletMap';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { projectService } from '@/services/projectService';
 
 interface LocalProject {
   id: string;
@@ -18,50 +18,43 @@ interface LocalProject {
   };
 }
 
-const mockProjects: LocalProject[] = [
-  {
-    id: '8821',
-    name: 'Central Highway Repair',
-    status: 'verified',
-    location: 'Sector 7',
-    completion: 75,
-    description: 'Gemini AI Verified',
-    place: { location: { latitude: 6.5244, longitude: 3.3792 } }
-  },
-  {
-    id: '9923',
-    name: 'District 9 Water Supply',
-    status: 'alert',
-    location: 'North Zone',
-    completion: 40,
-    description: 'Material Shortage',
-    place: { location: { latitude: 9.0579, longitude: 7.4951 } }
-  },
-  {
-    id: '1029',
-    name: 'City Bridge Alpha',
-    status: 'pending',
-    location: 'Downtown',
-    completion: 15,
-    description: 'Waiting for visual proof',
-    place: { location: { latitude: 4.8156, longitude: 7.0498 } }
-  },
-  {
-    id: '1044',
-    name: 'Solar Grid Extension',
-    status: 'draft',
-    location: 'West Sector',
-    completion: 0,
-    description: 'Not started',
-    place: { location: { latitude: 7.3775, longitude: 3.9470 } }
-  }
-];
-
 export const GovernorMapDashboard = () => {
   const navigate = useNavigate();
   const [selectedProject, setSelectedProject] = useState<LocalProject | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isNavigating, setIsNavigating] = useState(false);
+  const [projects, setProjects] = useState<LocalProject[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const loadProjects = async () => {
+    try {
+      const response = await projectService.getAllProjects();
+      const transformedProjects = response.projects.map((p: any) => ({
+        id: p.id.toString(),
+        name: p.name,
+        status: p.status || 'pending',
+        location: `${p.project_latitude?.toFixed(4)}, ${p.project_longitude?.toFixed(4)}`,
+        completion: 0,
+        description: p.description,
+        place: {
+          location: {
+            latitude: p.project_latitude || 0,
+            longitude: p.project_longitude || 0
+          }
+        }
+      }));
+      setProjects(transformedProjects);
+    } catch (error) {
+      console.error('Failed to load projects:', error);
+      setProjects([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -168,7 +161,7 @@ export const GovernorMapDashboard = () => {
         {/* Left Panel: Interactive Map */}
         <main className="flex-1 relative bg-[#0b120e]">
           <LeafletMap 
-            projects={mockProjects}
+            projects={projects}
             selectedProject={selectedProject}
             onProjectSelect={(project) => setSelectedProject(project)}
             center={[9.0820, 8.6753]}
@@ -273,7 +266,12 @@ export const GovernorMapDashboard = () => {
               <div className="space-y-4">
                 <h3 className="text-white font-bold text-sm uppercase tracking-wider mb-2">Monitored Projects</h3>
                 
-                {mockProjects.map((project) => {
+                {isLoading ? (
+                  <div className="text-center py-8 text-[#9db9a6]">Loading projects...</div>
+                ) : projects.length === 0 ? (
+                  <div className="text-center py-8 text-[#9db9a6]">No projects found</div>
+                ) : (
+                  projects.map((project) => {
                   const statusStyle = getStatusColor(project.status);
                   const progressColor = getProgressColor(project.status);
                   

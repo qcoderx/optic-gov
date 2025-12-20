@@ -34,10 +34,12 @@ export const ConnectionStatus = ({
 
     // Check SUI network connection
     try {
-      const { SuiClient, getFullnodeUrl } = await import('@mysten/sui.js/client');
-      const client = new SuiClient({ url: getFullnodeUrl(suiNetwork as any) });
-      await client.getLatestSuiSystemState();
-      setSuiStatus('connected');
+      const response = await fetch(`https://fullnode.${suiNetwork}.sui.io:443`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sui_getLatestSuiSystemState', params: [] })
+      });
+      setSuiStatus(response.ok ? 'connected' : 'disconnected');
     } catch {
       setSuiStatus('disconnected');
     }

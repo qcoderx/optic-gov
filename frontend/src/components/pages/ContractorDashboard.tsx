@@ -3,9 +3,7 @@ import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
-import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { projectService } from '@/services/projectService';
-import type { Project } from '@/types/project';
 
 
 
@@ -16,6 +14,7 @@ export const ContractorDashboard = () => {
   const [activities, setActivities] = useState<any[]>([]);
   const [stats, setStats] = useState({ activeProjects: 0, totalFunds: 0, pendingVerifications: 0, nextDeadline: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadProjects();
@@ -23,8 +22,6 @@ export const ContractorDashboard = () => {
 
   const loadProjects = async () => {
     try {
-      // Use real-time data hook
-      const { useRealTimeProjects } = await import('@/hooks/useRealTimeData');
       const response = await projectService.getAllProjects();
       
       const projectsArray = response.projects || response || [];

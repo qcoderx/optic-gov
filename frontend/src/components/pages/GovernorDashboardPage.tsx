@@ -40,7 +40,7 @@ export const GovernorDashboardPage = () => {
         on_chain_id: Math.floor(Math.random() * 10000),
       };
 
-      const result = await projectService.createProject(projectData);
+      await projectService.createProject(projectData);
 
       // Reset form
       setProjectName("");

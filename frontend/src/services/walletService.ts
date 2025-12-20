@@ -1,5 +1,4 @@
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
-import { Transaction } from '@mysten/sui/transactions';
+import { SuiClient, getFullnodeUrl } from '@mysten/sui.js/client';
 
 export class WalletService {
   private client: SuiClient;

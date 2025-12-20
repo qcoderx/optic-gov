@@ -1,5 +1,5 @@
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
-import { Transaction } from '@mysten/sui/transactions';
+import { SuiClient, getFullnodeUrl } from '@mysten/sui.js/client';
+import { Transaction } from '@mysten/sui.js/transactions';
 
 const NETWORK = (import.meta.env.VITE_SUI_NETWORK as string) || 'testnet';
 const SUI_CLIENT = new SuiClient({ url: getFullnodeUrl(NETWORK as 'testnet' | 'mainnet' | 'devnet') });
@@ -38,7 +38,7 @@ export class SuiService {
         })
       );
 
-      return projects.filter((p): p is NonNullable<typeof p> => p !== undefined);
+      return projects.filter((p: any) => p !== undefined);
     } catch (error) {
       console.error('Error fetching projects from SUI:', error);
       throw error;
