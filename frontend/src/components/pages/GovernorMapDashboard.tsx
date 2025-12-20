@@ -272,52 +272,52 @@ export const GovernorMapDashboard = () => {
                   <div className="text-center py-8 text-[#9db9a6]">No projects found</div>
                 ) : (
                   projects.map((project) => {
-                  const statusStyle = getStatusColor(project.status);
-                  const progressColor = getProgressColor(project.status);
-                  
-                  return (
-                    <motion.div 
-                      key={project.id}
-                      className={`bg-[#1a2c20] border border-[#28392e] hover:border-[#38e07b]/50 rounded-lg p-4 transition-colors cursor-pointer group ${
-                        selectedProject?.id === project.id ? 'border-[#38e07b]/50 bg-[#38e07b]/5' : ''
-                      }`}
-                      onClick={() => setSelectedProject(project)}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 className="text-white font-bold text-sm group-hover:text-[#38e07b] transition-colors">
-                            {project.name}
-                          </h4>
-                          <p className="text-[#9db9a6] text-xs">{project.location} • ID: #{project.id}</p>
-                        </div>
-                        <div className={`${statusStyle.bg} ${statusStyle.text} text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide flex items-center gap-1 border ${statusStyle.border}`}>
-                          <Icon name={getStatusIcon(project.status)} size="sm" />
-                          {project.status}
-                        </div>
-                      </div>
-                      <div className="w-full bg-[#102216] h-1.5 rounded-full mb-3 overflow-hidden">
-                        <motion.div 
-                          className={`${progressColor} h-1.5 rounded-full`}
-                          initial={{ width: 0 }}
-                          animate={{ width: `${project.completion}%` }}
-                          transition={{ duration: 1, delay: 0.2 }}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-white">{project.completion}% Complete</span>
-                        {project.description && (
-                          <div className="text-[10px] text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 flex items-center gap-1">
-                            {project.status === 'verified' && <Icon name="smart_toy" size="sm" />}
-                            {project.description}
+                    const statusStyle = getStatusColor(project.status);
+                    const progressColor = getProgressColor(project.status);
+                    
+                    return (
+                      <motion.div 
+                        key={project.id}
+                        className={`bg-[#1a2c20] border border-[#28392e] hover:border-[#38e07b]/50 rounded-lg p-4 transition-colors cursor-pointer group ${
+                          selectedProject?.id === project.id ? 'border-[#38e07b]/50 bg-[#38e07b]/5' : ''
+                        }`}
+                        onClick={() => setSelectedProject(project)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 className="text-white font-bold text-sm group-hover:text-[#38e07b] transition-colors">
+                              {project.name}
+                            </h4>
+                            <p className="text-[#9db9a6] text-xs">{project.location} • ID: #{project.id}</p>
                           </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
+                          <div className={`${statusStyle.bg} ${statusStyle.text} text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide flex items-center gap-1 border ${statusStyle.border}`}>
+                            <Icon name={getStatusIcon(project.status)} size="sm" />
+                            {project.status}
+                          </div>
+                        </div>
+                        <div className="w-full bg-[#102216] h-1.5 rounded-full mb-3 overflow-hidden">
+                          <motion.div 
+                            className={`${progressColor} h-1.5 rounded-full`}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${project.completion}%` }}
+                            transition={{ duration: 1, delay: 0.2 }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-white">{project.completion}% Complete</span>
+                          {project.description && (
+                            <div className="text-[10px] text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 flex items-center gap-1">
+                              {project.status === 'verified' && <Icon name="smart_toy" size="sm" />}
+                              {project.description}
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })
+                )}
             </div>
           </div>
 
