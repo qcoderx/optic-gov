@@ -55,12 +55,6 @@ class AIService {
     const data = await response.json();
     return data.video_url || data.url;
   }
-
-  private getMockVerification(): VerificationResult {
-    // This method is removed - no mock data allowed
-    throw new Error('Mock verification disabled - use real backend only');
-  }
-
 }
 
 export const aiService = new AIService();

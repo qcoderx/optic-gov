@@ -49,7 +49,7 @@ export const useWallet = () => {
     if (typeof window !== 'undefined' && (window as any).suiWallet) {
       setWalletState(prev => ({ ...prev, isConnecting: true, error: undefined }));
       try {
-        const result = await (window as any).suiWallet.requestPermissions();
+        await (window as any).suiWallet.requestPermissions();
         const accounts = await (window as any).suiWallet.getAccounts();
         
         if (accounts.length > 0) {

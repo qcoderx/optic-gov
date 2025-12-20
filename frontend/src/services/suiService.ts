@@ -1,8 +1,7 @@
-import { SuiClient, getFullnodeUrl } from '@mysten/sui.js/client';
-import { TransactionBlock } from '@mysten/sui.js/transactions';
-import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519';
+import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+import { Transaction } from '@mysten/sui/transactions';
 
-const NETWORK = import.meta.env.VITE_SUI_NETWORK || 'testnet';
+const NETWORK = (import.meta.env.VITE_SUI_NETWORK as string) || 'testnet';
 const SUI_CLIENT = new SuiClient({ url: getFullnodeUrl(NETWORK as 'testnet' | 'mainnet' | 'devnet') });
 
 // Contract addresses - update these with your deployed contract addresses
@@ -39,7 +38,7 @@ export class SuiService {
         })
       );
 
-      return projects.filter(p => p !== undefined);
+      return projects.filter((p): p is NonNullable<typeof p> => p !== undefined);
     } catch (error) {
       console.error('Error fetching projects from SUI:', error);
       throw error;
@@ -54,15 +53,15 @@ export class SuiService {
     location: { lat: number; lng: number };
   }): Promise<string> {
     try {
-      const tx = new TransactionBlock();
+      const tx = new Transaction();
       
-      const [coin] = tx.splitCoins(tx.gas, [tx.pure(projectData.budget * 1000000000)]);
+      const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(projectData.budget * 1000000000)]);
       
       tx.moveCall({
         target: `${CONTRACT_ADDRESSES.PACKAGE_ID}::optic_gov::create_project`,
         arguments: [
           coin,
-          tx.pure(projectData.contractor)
+          tx.pure.address(projectData.contractor)
         ]
       });
 
@@ -93,14 +92,13 @@ export class SuiService {
     evidence_url: string;
   }): Promise<string> {
     try {
-      const tx = new TransactionBlock();
+      const tx = new Transaction();
       
-      // Match blockchain.move submit_evidence function signature
       tx.moveCall({
         target: `${CONTRACT_ADDRESSES.PACKAGE_ID}::optic_gov::submit_evidence`,
         arguments: [
           tx.object(projectId),
-          tx.pure(milestoneData.evidence_url) // Only send IPFS hash
+          tx.pure.string(milestoneData.evidence_url)
         ]
       });
 
@@ -137,7 +135,7 @@ export class SuiService {
     }
   }
 
-  async releaseFunds(walletSigner: any, projectId: string, milestoneIndex: number): Promise<string> {
+  async releaseFunds(): Promise<string> {
     // WARNING: This function requires OracleCap which only the backend holds
     // This should ONLY be called by the backend, not the frontend
     throw new Error('releaseFunds can only be called by the backend Oracle - use backend API instead');
