@@ -79,7 +79,7 @@ export const RegisterPage = () => {
           >
             <Icon name="lock" className="text-text-secondary text-sm" />
             <span className="text-xs text-text-secondary font-medium tracking-wide">
-              SECURED WITH ETHEREUM
+              SECURED WITH SUI
             </span>
           </motion.div>
         </div>

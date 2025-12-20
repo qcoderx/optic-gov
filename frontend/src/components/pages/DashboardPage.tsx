@@ -192,7 +192,7 @@ export const DashboardPage = () => {
                             Funds Released
                           </p>
                           <div className="flex items-center gap-2 text-white font-mono text-sm">
-                            <span>{selectedProject.evidence.fundsReleased}.00 ETH</span>
+                            <span>{selectedProject.evidence.fundsReleased}.00 SUI</span>
                             <span className="text-xs text-gray-500">(Milestone 3)</span>
                           </div>
                         </div>

@@ -138,7 +138,7 @@ export const ContractorProjectView = () => {
                   >
                     5.0
                   </motion.span>
-                  <span className="text-2xl font-bold text-[#38e07b]">ETH</span>
+                  <span className="text-2xl font-bold text-[#38e07b]">SUI</span>
                 </div>
                 <p className="text-xs text-[#9eb7a8] mt-2 opacity-60">≈ $12,450.00 USD</p>
               </div>
@@ -168,7 +168,7 @@ export const ContractorProjectView = () => {
                 href="#"
                 whileHover={{ x: 5 }}
               >
-                View on Etherscan
+                View on SUIerscan
                 <Icon name="open_in_new" size="sm" />
               </motion.a>
             </div>

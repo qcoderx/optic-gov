@@ -161,17 +161,17 @@ export const ProjectDetailsPage = () => {
           </div>
           <div className="flex flex-col gap-2 rounded-xl p-6 bg-[#1c2620] border border-[#29382f]">
             <div className="flex items-center justify-between">
-              <p className="text-[#9cbaa6] text-sm font-medium uppercase tracking-wider">ETH Locked</p>
+              <p className="text-[#9cbaa6] text-sm font-medium uppercase tracking-wider">SUI Locked</p>
               <Icon name="lock" className="text-[#9cbaa6]" />
             </div>
-            <p className="text-white text-2xl font-bold">150 ETH</p>
+            <p className="text-white text-2xl font-bold">150 SUI</p>
           </div>
           <div className="flex flex-col gap-2 rounded-xl p-6 bg-[#1c2620] border border-[#29382f]">
             <div className="flex items-center justify-between">
-              <p className="text-[#9cbaa6] text-sm font-medium uppercase tracking-wider">ETH Released</p>
+              <p className="text-[#9cbaa6] text-sm font-medium uppercase tracking-wider">SUI Released</p>
               <Icon name="lock_open" className="text-[#38e07b]" />
             </div>
-            <p className="text-[#38e07b] text-2xl font-bold">45 ETH</p>
+            <p className="text-[#38e07b] text-2xl font-bold">45 SUI</p>
           </div>
           <div className="flex flex-col gap-2 rounded-xl p-6 bg-[#1c2620] border border-[#29382f]">
             <div className="flex items-center justify-between">

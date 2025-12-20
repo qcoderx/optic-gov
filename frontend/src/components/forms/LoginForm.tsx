@@ -98,7 +98,7 @@ export const LoginForm = () => {
           label="Email Address"
           type="email"
           icon="mail"
-          placeholder="governor@optic-gov.eth"
+          placeholder="governor@optic-gov.sui"
           value={data.email}
           onChange={(e) => updateField('email', e.target.value)}
           error={errors.email}

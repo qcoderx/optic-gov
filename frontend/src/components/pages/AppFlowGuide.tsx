@@ -86,7 +86,7 @@ export const AppFlowGuide = () => {
             </div>
             <p className="text-[#9eb7a8] mb-3">💰 Smart contract automatically releases payment to contractor</p>
             <div className="bg-[#29382f] p-3 rounded text-sm">
-              <strong>What happens:</strong> ETH/NGN transferred, milestone marked complete, next milestone unlocked
+              <strong>What happens:</strong> SUI/NGN transferred, milestone marked complete, next milestone unlocked
             </div>
           </motion.div>
 

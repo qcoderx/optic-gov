@@ -233,8 +233,8 @@ export const ActiveProjectsPage = () => {
                       <div className="flex flex-col">
                         <span className="text-[#9eb7a8]">Budget</span>
                         <span className="text-white font-mono font-bold">
-                          {project.budget_currency === 'ETH' 
-                            ? `${project.budget} ETH`
+                          {project.budget_currency === 'SUI' 
+                            ? `${project.budget} SUI`
                             : `₦${project.total_budget_ngn?.toLocaleString() || project.budget?.toLocaleString()}`
                           }
                         </span>

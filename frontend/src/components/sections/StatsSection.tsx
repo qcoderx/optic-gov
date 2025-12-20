@@ -7,7 +7,7 @@ const stats = [
   {
     icon: 'ethereum',
     value: 2847,
-    suffix: ' ETH',
+    suffix: ' SUI',
     label: 'Total Value Locked',
     description: 'Secured in smart contracts'
   },

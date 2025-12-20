@@ -125,7 +125,7 @@ export const GovernorMapDashboard = () => {
               animate={{ opacity: [1, 0.3, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
             />
-            Ethereum Mainnet: Block #19244291
+            Sui Network: Block #19244291
           </motion.div>
           {/* Wallet & User Actions */}
           <div className="flex gap-3">

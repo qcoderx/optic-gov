@@ -120,7 +120,7 @@ export const RegistrationForm = () => {
 
         <Input
           id="walletAddress"
-          label={`Ethereum Wallet Address ${connectedWallet ? '(Auto-filled from connected wallet)' : ''}`}
+          label={`Sui Wallet Address ${connectedWallet ? '(Auto-filled from connected wallet)' : ''}`}
           icon="account_balance_wallet"
           placeholder={connectedWallet ? connectedWallet : "0x..."}
           value={data.walletAddress}

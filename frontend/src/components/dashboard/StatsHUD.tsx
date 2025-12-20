@@ -3,8 +3,8 @@ import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
 import { useInView } from '@/hooks/useInView';
 
 const stats = [
-  { label: 'ETH Locked', value: 12450, suffix: ' ETH' },
-  { label: 'ETH Released', value: 4200, suffix: ' ETH' },
+  { label: 'SUI Locked', value: 12450, suffix: ' SUI' },
+  { label: 'SUI Released', value: 4200, suffix: ' SUI' },
   { label: 'Corruption Prevented', value: 12040000, prefix: '$' }
 ];
 

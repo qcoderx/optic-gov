@@ -135,8 +135,8 @@ export const MilestoneVerificationPage = () => {
           >
             <p className="text-gray-400 text-sm uppercase tracking-wider mb-4">Funds Locked in Smart Contract</p>
             <div className="space-y-2">
-              <div className="text-6xl font-bold text-white">{project?.total_budget_eth?.toFixed(2) || '0.00'}</div>
-              <div className="text-[#0df20d] text-xl font-bold">ETH</div>
+              <div className="text-6xl font-bold text-white">{project?.total_budget_SUI?.toFixed(2) || '0.00'}</div>
+              <div className="text-[#0df20d] text-xl font-bold">SUI</div>
               <div className="text-gray-400">≈ ₦{project?.total_budget_ngn?.toLocaleString() || '0'}</div>
             </div>
           </motion.div>
@@ -162,7 +162,7 @@ export const MilestoneVerificationPage = () => {
             </div>
             <div className="flex justify-between text-sm text-gray-400">
               <span>Contract #0x83...99a</span>
-              <a href="#" className="text-[#0df20d] hover:underline">View on Etherscan</a>
+              <a href="#" className="text-[#0df20d] hover:underline">View on SUIerscan</a>
             </div>
           </motion.div>
 
@@ -249,7 +249,7 @@ export const MilestoneVerificationPage = () => {
             <span className="text-gray-400">Powered by</span>
             <div className="flex items-center gap-2">
               <Icon name="currency_bitcoin" className="text-[#0df20d]" />
-              <span className="font-bold">Ethereum</span>
+              <span className="font-bold">SUIereum</span>
             </div>
             <span className="text-gray-400">&</span>
             <div className="flex items-center gap-2">

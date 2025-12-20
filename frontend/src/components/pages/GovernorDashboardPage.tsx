@@ -12,7 +12,7 @@ export const GovernorDashboardPage = () => {
   const [projectName, setProjectName] = useState("");
   const [contractorAddress, setContractorAddress] = useState("");
   const [budget, setBudget] = useState(0);
-  const [budgetCurrency, setBudgetCurrency] = useState<"NGN" | "ETH">("NGN");
+  const [budgetCurrency, setBudgetCurrency] = useState<"NGN" | "SUI">("NGN");
   const [milestoneDescription, setMilestoneDescription] = useState("");
   const [isNavigating, setIsNavigating] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -186,7 +186,7 @@ export const GovernorDashboardPage = () => {
                   animate={{ opacity: [1, 0.3, 1] }}
                   transition={{ duration: 2, repeat: Infinity }}
                 />
-                <span>Ethereum Mainnet</span>
+                <span>SUIereum Mainnet</span>
               </div>
             </div>
           </div>
@@ -423,11 +423,11 @@ export const GovernorDashboardPage = () => {
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-[#9eb7a8]">Est. Gas Fee</span>
-                      <span className="text-white font-mono">0.0042 ETH</span>
+                      <span className="text-white font-mono">0.0042 SUI</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-[#9eb7a8]">Oracle Fee</span>
-                      <span className="text-white font-mono">0.0100 ETH</span>
+                      <span className="text-white font-mono">0.0100 SUI</span>
                     </div>
                   </div>
                   <div className="flex justify-between items-end">
@@ -441,13 +441,13 @@ export const GovernorDashboardPage = () => {
                         transition={{ duration: 2, repeat: Infinity }}
                       >
                         {budget
-                          ? budgetCurrency === "ETH"
+                          ? budgetCurrency === "SUI"
                             ? (budget + 0.0142).toFixed(4)
                             : (budget / 4500000 + 0.0142).toFixed(4)
                           : "5.0142"}
                       </motion.span>
                       <span className="text-xs text-[#9eb7a8] font-mono">
-                        ETH
+                        SUI
                       </span>
                     </div>
                   </div>

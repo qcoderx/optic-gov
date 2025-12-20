@@ -9,7 +9,7 @@ const mockVerificationData = {
   target: 'Bridge Foundation - Sector 4',
   matchPercentage: 92,
   txHash: '0x71C...92F',
-  ethReleased: 15.4,
+  suiReleased: 15.4,
   imageUrl: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=300&fit=crop&q=80',
   backgroundUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&h=600&fit=crop&q=80',
 };
@@ -149,7 +149,7 @@ export const HeroSection = () => {
                         Verification Successful
                       </p>
                       <p className="text-[10px] text-gray-400 font-mono">
-                        TxHash: {mockVerificationData.txHash} • {mockVerificationData.ethReleased} ETH Released
+                        TxHash: {mockVerificationData.txHash} • {mockVerificationData.suiReleased} SUI Released
                       </p>
                     </div>
                   </div>
