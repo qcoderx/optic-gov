@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import google.generativeai as genai
+from google import genai
 from web3 import Web3
 import os
 from dotenv import load_dotenv
@@ -38,8 +38,7 @@ app.add_middleware(
 )
 
 # Configure Gemini
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-3-flash')
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 # Configure Web3
 w3 = Web3(Web3.HTTPProvider(os.getenv("SEPOLIA_RPC_URL")))
@@ -311,7 +310,10 @@ Budget: ${request.total_budget:,.2f}
 
 Return ONLY a JSON array like: ["Foundation excavation", "Concrete pouring", "Steel reinforcement"]"""
         
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-3-flash',
+            contents=prompt
+        )
         response_text = response.text.strip()
         
         # Try to extract JSON from response
@@ -573,8 +575,11 @@ Return ONLY a JSON object:
 }}"""
 
         # Upload local video file and analyze
-        video_file = genai.upload_file(temp_file_path)
-        response = model.generate_content([prompt, video_file])
+        video_file = client.files.upload(path=temp_file_path)
+        response = client.models.generate_content(
+            model='gemini-3-flash',
+            contents=[prompt, video_file]
+        )
         
         # Parse Gemini response
         result = json.loads(response.text)
