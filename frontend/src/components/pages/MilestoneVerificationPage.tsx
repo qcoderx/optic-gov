@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
-import { projectService } from '@/services/projectService';
 import { verifyMilestoneWithBackend } from '@/services/aiService';
 
 export const MilestoneVerificationPage = () => {

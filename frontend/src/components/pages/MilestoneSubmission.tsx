@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
-import { projectService } from '@/services/projectService';
 
 export const MilestoneSubmission = () => {
   const { milestoneId } = useParams();
