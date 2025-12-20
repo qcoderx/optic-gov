@@ -6,9 +6,9 @@ export interface Project {
   location?: string;
   status: 'pending' | 'in-progress' | 'completed';
   budget: number;
-  total_budget_eth?: number;
+  total_budget_sui?: number;
   total_budget_ngn?: number;
-  budget_currency?: 'NGN' | 'ETH';
+  budget_currency?: 'NGN' | 'SUI';
   progress?: number;
   aiConfidence?: number;
   votes?: number;
@@ -51,7 +51,7 @@ export interface ProjectCreateRequest {
   name: string;
   description: string;
   total_budget: number;
-  budget_currency: 'NGN' | 'ETH';
+  budget_currency: 'NGN' | 'SUI';
   contractor_wallet: string; // MUST be valid Sui address
   use_ai_milestones: boolean;
   manual_milestones?: string[];

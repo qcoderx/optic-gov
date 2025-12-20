@@ -3,9 +3,9 @@ import { currencyService } from '../../services/currencyService';
 
 interface CurrencyInputProps {
   value: number;
-  onChange: (value: number, currency: 'NGN' | 'ETH') => void;
-  currency: 'NGN' | 'ETH';
-  onCurrencyChange: (currency: 'NGN' | 'ETH') => void;
+  onChange: (value: number, currency: 'NGN' | 'SUI') => void;
+  currency: 'NGN' | 'SUI';
+  onCurrencyChange: (currency: 'NGN' | 'SUI') => void;
   placeholder?: string;
   className?: string;
 }
@@ -50,7 +50,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   }, [value, currency]);
 
   const handleCurrencyToggle = () => {
-    const newCurrency = currency === 'NGN' ? 'ETH' : 'NGN';
+    const newCurrency = currency === 'NGN' ? 'SUI' : 'NGN';
     onCurrencyChange(newCurrency);
     
     // Convert current value to new currency
@@ -71,7 +71,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
           }}
           placeholder={placeholder}
           className="w-full bg-[#29382f] border-none rounded-xl text-white placeholder:text-[#9eb7a8] h-14 pl-4 pr-20 focus:ring-2 focus:ring-[#38e07b] focus:ring-opacity-50 transition-all font-medium"
-          step={currency === 'ETH' ? '0.000001' : '1'}
+          step={currency === 'SUI' ? '0.000001' : '1'}
           min="0"
         />
         <button
