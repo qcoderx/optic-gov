@@ -389,15 +389,18 @@ async def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
 @app.get("/projects")
 async def get_all_projects(db: Session = Depends(get_db)):
     projects = db.query(Project).all()
-    
+
     projects_with_currency = []
     for project in projects:
+        # SAFEGUARD: Handle None budget
+        budget_sui = project.total_budget if project.total_budget is not None else 0.0
+
         project_dict = {
             "id": project.id,
             "name": project.name,
             "description": project.description,
-            "total_budget_sui": project.total_budget, # RETURN AS SUI
-            "total_budget_ngn": convert_sui_to_ngn(project.total_budget),
+            "total_budget_sui": budget_sui, # RETURN AS SUI
+            "total_budget_ngn": convert_sui_to_ngn(budget_sui), # Now safe
             "contractor_id": project.contractor_id,
             "ai_generated": project.ai_generated,
             "project_latitude": project.project_latitude,
@@ -408,7 +411,7 @@ async def get_all_projects(db: Session = Depends(get_db)):
             "created_at": project.created_at
         }
         projects_with_currency.append(project_dict)
-    
+
     return {
         "projects": projects_with_currency,
         "exchange_rate": get_sui_ngn_rate()
@@ -419,7 +422,7 @@ async def get_project(project_id: int, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     milestones = db.query(Milestone).filter(Milestone.project_id == project_id).order_by(Milestone.order_index).all()
     milestone_list = []
     for m in milestones:
@@ -429,15 +432,18 @@ async def get_project(project_id: int, db: Session = Depends(get_db)):
             "amount": m.amount,
             "status": m.status,
             "order_index": m.order_index,
-            "criteria": f"Verify completion of: {m.description}" 
+            "criteria": f"Verify completion of: {m.description}"
         })
-    
+
+    # SAFEGUARD: Handle None budget
+    budget_sui = project.total_budget if project.total_budget is not None else 0.0
+
     project_dict = {
         "id": project.id,
         "name": project.name,
         "description": project.description,
-        "total_budget_sui": project.total_budget,
-        "total_budget_ngn": convert_sui_to_ngn(project.total_budget),
+        "total_budget_sui": budget_sui,
+        "total_budget_ngn": convert_sui_to_ngn(budget_sui), # Now safe
         "contractor_id": project.contractor_id,
         "ai_generated": project.ai_generated,
         "project_latitude": project.project_latitude,
