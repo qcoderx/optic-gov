@@ -1,116 +1,63 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { WalletState } from '@/types';
+import { useSuiWallet } from './useSuiWallet';
 
 export const useWallet = () => {
+  const { address: suiAddress, isConnected: suiConnected, connect, disconnect } = useSuiWallet();
+  
   const [walletState, setWalletState] = useState<WalletState>({
     isConnected: false,
     isConnecting: false,
   });
 
   useEffect(() => {
-    const checkConnection = async () => {
-      // Check for Sui wallet first (priority)
-      if (typeof window !== 'undefined' && (window as any).suiWallet) {
-        try {
-          const accounts = await (window as any).suiWallet.getAccounts();
-          if (accounts.length > 0) {
-            setWalletState({
-              isConnected: true,
-              address: accounts[0],
-              isConnecting: false,
-            });
-          }
-        } catch (error) {
-          console.error('Failed to check Sui wallet:', error);
-        }
-      }
-      // Fallback to Ethereum
-      else if (typeof window !== 'undefined' && window.ethereum) {
-        try {
-          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-          if (accounts.length > 0) {
-            setWalletState({
-              isConnected: true,
-              address: accounts[0],
-              isConnecting: false,
-            });
-          }
-        } catch (error) {
-          console.error('Failed to check wallet connection:', error);
-        }
-      }
-    };
-    
-    checkConnection();
-  }, []);
+    if (suiConnected && suiAddress) {
+      setWalletState({
+        isConnected: true,
+        address: suiAddress,
+        isConnecting: false,
+      });
+    } else {
+      setWalletState({
+        isConnected: false,
+        isConnecting: false,
+      });
+    }
+  }, [suiConnected, suiAddress]);
 
   const connectWallet = useCallback(async () => {
-    // Priority: Try Sui wallet first
-    if (typeof window !== 'undefined' && (window as any).suiWallet) {
-      setWalletState(prev => ({ ...prev, isConnecting: true, error: undefined }));
-      try {
-        await (window as any).suiWallet.requestPermissions();
-        const accounts = await (window as any).suiWallet.getAccounts();
-        
-        if (accounts.length > 0) {
-          setWalletState({
-            isConnected: true,
-            address: accounts[0],
-            isConnecting: false,
-          });
-          localStorage.setItem('walletConnected', 'sui');
-          return;
-        }
-      } catch (error) {
-        console.error('Sui wallet connection failed:', error);
-      }
-    }
-
-    // Fallback: Ethereum/MetaMask
-    if (typeof window.ethereum === 'undefined') {
-      setWalletState(prev => ({
-        ...prev,
-        error: 'No wallet detected. Please install Sui Wallet or MetaMask',
-      }));
-      return;
-    }
-
     setWalletState(prev => ({ ...prev, isConnecting: true, error: undefined }));
-
     try {
-      const accounts = await window.ethereum.request({
-        method: 'eth_requestAccounts',
+      connect({ wallet: { name: 'Sui Wallet' } }, {
+        onSuccess: () => {
+          setWalletState(prev => ({ ...prev, isConnecting: false }));
+        },
+        onError: (error) => {
+          setWalletState({
+            isConnected: false,
+            isConnecting: false,
+            error: 'Failed to connect Sui wallet. Please install Sui Wallet or Slush.',
+          });
+        }
       });
-
-      if (accounts.length > 0) {
-        setWalletState({
-          isConnected: true,
-          address: accounts[0],
-          isConnecting: false,
-        });
-        localStorage.setItem('walletConnected', 'ethereum');
-      }
     } catch (error) {
       setWalletState({
         isConnected: false,
         isConnecting: false,
-        error: error instanceof Error ? error.message : 'Failed to connect wallet',
+        error: 'Failed to connect wallet',
       });
     }
-  }, []);
+  }, [connect]);
 
   const disconnectWallet = useCallback(() => {
+    disconnect();
     setWalletState({
       isConnected: false,
       isConnecting: false,
       address: undefined,
       error: undefined,
     });
-    
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('walletConnected');
-    }
-  }, []);
+  }, [disconnect]);
 
   return {
     ...walletState,

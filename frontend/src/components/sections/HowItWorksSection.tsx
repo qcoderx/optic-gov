@@ -12,7 +12,7 @@ const steps: ProcessStep[] = [
   },
   {
     step: 2,
-    title: 'Gemini Analysis',
+    title: 'AI Analysis',
     description: 'AI compares visual data against project blueprints.',
     icon: 'oracle',
     status: 'pending',

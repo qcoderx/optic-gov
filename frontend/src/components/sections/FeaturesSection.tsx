@@ -8,7 +8,7 @@ const features: Feature[] = [
   {
     icon: 'oracle',
     title: 'Autonomous Auditing',
-    description: 'Smart contracts automatically verify milestones using Google Gemini\'s advanced vision capabilities to analyze site photos uploaded by contractors.',
+    description: 'Smart contracts automatically verify milestones using AI vision capabilities to analyze site photos uploaded by contractors.',
   },
   {
     icon: 'defi',

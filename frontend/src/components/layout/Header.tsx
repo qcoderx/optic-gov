@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/Button';
+import { SuiConnectButton } from '@/components/ui/SuiConnectButton';
 import { Icon } from '@/components/ui/Icon';
+import { useSuiWallet } from '@/hooks/useSuiWallet';
 
 const navigation = [
   { name: 'How it Works', href: '#how-it-works' },
@@ -10,69 +10,11 @@ const navigation = [
 ];
 
 export const Header = () => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [address, setAddress] = useState<string | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-
-  const checkConnection = async () => {
-    if (typeof window !== 'undefined' && window.ethereum) {
-      try {
-        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        if (accounts.length > 0) {
-          setIsConnected(true);
-          setAddress(accounts[0]);
-        }
-      } catch (error) {
-        console.error('Failed to check connection:', error);
-      }
-    }
-  };
-
-  const connectWallet = async () => {
-    if (typeof window !== 'undefined' && window.ethereum) {
-      try {
-        setIsConnecting(true);
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        if (accounts.length > 0) {
-          setIsConnected(true);
-          setAddress(accounts[0]);
-          console.log('Wallet connected:', accounts[0]);
-        }
-      } catch (error) {
-        console.error('Failed to connect wallet:', error);
-      } finally {
-        setIsConnecting(false);
-      }
-    } else {
-      console.log('Please install MetaMask!');
-    }
-  };
+  const { address, isConnected } = useSuiWallet();
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
-
-  const disconnectWallet = () => {
-    setIsConnected(false);
-    setAddress(null);
-  };
-
-  useEffect(() => {
-    checkConnection();
-    
-    // Listen for account changes
-    if (typeof window !== 'undefined' && window.ethereum) {
-      window.ethereum.on('accountsChanged', (accounts: string[]) => {
-        if (accounts.length > 0) {
-          setIsConnected(true);
-          setAddress(accounts[0]);
-        } else {
-          setIsConnected(false);
-          setAddress(null);
-        }
-      });
-    }
-  }, []);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-solid border-border-dark bg-background-dark/80 backdrop-blur-md">
@@ -135,32 +77,12 @@ export const Header = () => {
             </a>
 
             {isConnected && address ? (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="secondary"
-                  className="bg-green-600 hover:bg-green-700 text-white border-green-600"
-                >
-                  <Icon name="account_balance_wallet" size="sm" />
-                  <span className="truncate">{formatAddress(address)}</span>
-                </Button>
-                <Button
-                  onClick={disconnectWallet}
-                  variant="secondary"
-                  className="bg-red-600 hover:bg-red-700 text-white border-red-600"
-                  title="Disconnect Wallet"
-                >
-                  <Icon name="logout" size="sm" />
-                </Button>
+              <div className="flex items-center gap-2 bg-green-600/10 border border-green-600/20 rounded-lg px-3 py-2">
+                <Icon name="account_balance_wallet" size="sm" className="text-green-500" />
+                <span className="text-white text-sm font-mono">{formatAddress(address)}</span>
               </div>
             ) : (
-              <Button
-                onClick={connectWallet}
-                loading={isConnecting}
-                className="shadow-primary"
-              >
-                <Icon name="account_balance_wallet" size="sm" />
-                <span className="truncate">Connect Wallet</span>
-              </Button>
+              <SuiConnectButton />
             )}
           </div>
         </div>

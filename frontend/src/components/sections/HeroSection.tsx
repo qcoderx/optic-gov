@@ -45,7 +45,7 @@ export const HeroSection = () => {
 
             <p className="text-text-secondary text-lg md:text-xl font-normal leading-relaxed max-w-[540px]">
               <TypewriterText 
-                text="The first dApp to use Gemini 2.5 Flash as an AI Oracle for visual verification. We replace opaque ledgers with immutable code and computer vision."
+                text="The first dApp to use AI as an Oracle for visual verification. We replace opaque ledgers with immutable code and computer vision."
                 delay={3000}
                 speed={40}
               />
@@ -81,7 +81,7 @@ export const HeroSection = () => {
               </span>
               <span className="flex items-center gap-1">
                 <Web3Icon name="oracle" size="sm" className="text-primary animate-spin" />
-                Powered by Gemini
+                Powered by AI
               </span>
             </div>
           </motion.div>
@@ -110,7 +110,7 @@ export const HeroSection = () => {
                   </span>
                 </div>
                 <span className="text-xs font-bold text-primary">
-                  GEMINI-2.5-FLASH
+                  AI ORACLE
                 </span>
               </div>
 
