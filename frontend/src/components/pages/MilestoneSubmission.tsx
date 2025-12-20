@@ -33,17 +33,29 @@ export const MilestoneSubmission = () => {
           throw new Error('Invalid project ID');
         }
         
-        // Load real project data from backend
+        // Load real project data from backend (includes milestones from DB)
         const projectData = await projectService.getProject(projectId);
         setProject(projectData);
         
-        // Load real milestone data from SUI blockchain
-        const { suiService } = await import('@/services/suiService');
-        const milestones = await suiService.getProjectMilestones(projectId.toString());
-        if (!milestones || milestones.length === 0) {
-          throw new Error('No milestones found for this project');
+        // Fetch on-chain state if on_chain_id exists
+        if (projectData.on_chain_id) {
+          const { suiService } = await import('@/services/suiService');
+          const onChainState = await suiService.getProjectState(projectData.on_chain_id);
+          console.log('On-Chain State:', onChainState);
         }
-        setMilestone(milestones[0]);
+        
+        // Set milestone from DB data (milestones are in PostgreSQL, not on-chain)
+        const milestones = projectData.milestones || [];
+        if (milestones.length > 0) {
+          setMilestone(milestones[0]);
+        } else {
+          // Default milestone if none in DB
+          setMilestone({
+            id: 1,
+            title: 'Milestone Verification',
+            criteria: 'Submit evidence of project progress'
+          });
+        }
       } else {
         throw new Error('No milestone ID provided');
       }

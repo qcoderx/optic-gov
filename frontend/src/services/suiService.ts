@@ -1,10 +1,10 @@
 import { SuiClient, getFullnodeUrl } from '@mysten/sui.js/client';
-import { Transaction } from '@mysten/sui.js/transactions';
+import { TransactionBlock } from '@mysten/sui.js/transactions';
 
 const NETWORK = (import.meta.env.VITE_SUI_NETWORK as string) || 'testnet';
 const SUI_CLIENT = new SuiClient({ url: getFullnodeUrl(NETWORK as 'testnet' | 'mainnet' | 'devnet') });
 
-// Contract addresses - update these with your deployed contract addresses
+// Contract addresses
 const CONTRACT_ADDRESSES = {
   PACKAGE_ID: import.meta.env.VITE_SUI_PACKAGE_ID || '',
   PROJECT_REGISTRY: import.meta.env.VITE_PROJECT_REGISTRY || '',
@@ -53,15 +53,16 @@ export class SuiService {
     location: { lat: number; lng: number };
   }): Promise<string> {
     try {
-      const tx = new Transaction();
+      const tx = new TransactionBlock();
       
-      const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(projectData.budget * 1000000000)]);
+      // tx.pure() handles simple types automatically in 0.54.x
+      const [coin] = tx.splitCoins(tx.gas, [tx.pure(projectData.budget * 1_000_000_000)]);
       
       tx.moveCall({
         target: `${CONTRACT_ADDRESSES.PACKAGE_ID}::optic_gov::create_project`,
         arguments: [
           coin,
-          tx.pure.address(projectData.contractor)
+          tx.pure(projectData.contractor)
         ]
       });
 
@@ -92,13 +93,13 @@ export class SuiService {
     evidence_url: string;
   }): Promise<string> {
     try {
-      const tx = new Transaction();
+      const tx = new TransactionBlock();
       
       tx.moveCall({
         target: `${CONTRACT_ADDRESSES.PACKAGE_ID}::optic_gov::submit_evidence`,
         arguments: [
           tx.object(projectId),
-          tx.pure.string(milestoneData.evidence_url)
+          tx.pure(milestoneData.evidence_url)
         ]
       });
 
@@ -117,7 +118,7 @@ export class SuiService {
     }
   }
 
-  async getProjectMilestones(projectId: string): Promise<any[]> {
+  async getProjectState(projectId: string): Promise<any> {
     try {
       const response = await this.client.getObject({
         id: projectId,
@@ -128,16 +129,19 @@ export class SuiService {
       });
 
       const content = response.data?.content as any;
-      return content?.fields?.milestones || [];
+      return content?.fields || {};
     } catch (error) {
-      console.error('Error fetching milestones from SUI:', error);
-      throw error;
+      console.error('Error fetching project state from SUI:', error);
+      return {};
     }
   }
 
+  async getProjectMilestones(projectId: string): Promise<any[]> {
+    console.warn("Warning: Milestones are stored in DB, not on-chain. Returning empty array from SUI.");
+    return [];
+  }
+
   async releaseFunds(): Promise<string> {
-    // WARNING: This function requires OracleCap which only the backend holds
-    // This should ONLY be called by the backend, not the frontend
     throw new Error('releaseFunds can only be called by the backend Oracle - use backend API instead');
   }
 }
