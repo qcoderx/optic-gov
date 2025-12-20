@@ -9,14 +9,15 @@ def migrate_db():
         try:
             print("Starting migration...")
             
-            # Add location columns (using IF NOT EXISTS to be safe)
+            # --- Projects Table Updates ---
             conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_latitude FLOAT"))
             conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_longitude FLOAT"))
             conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS location_tolerance_km FLOAT DEFAULT 1.0"))
-            
-            # Add SUI specific columns (The fix for your error)
             conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS sui_project_id VARCHAR"))
             conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS on_chain_id VARCHAR"))
+            
+            # --- Milestones Table Updates (Fix for your current error) ---
+            conn.execute(text("ALTER TABLE milestones ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'pending'"))
             
             conn.commit()
             print("✅ Database migration completed successfully")
