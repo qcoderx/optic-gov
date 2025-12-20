@@ -12,7 +12,7 @@ from auth import hash_password, verify_password, create_access_token, verify_tok
 from typing import List, Optional
 import requests
 
-# CORRECTED SUI IMPORTS for pysui 0.65.0
+# CORRECTED SUI IMPORTS for pysui 0.65.0d
 from pysui import SuiConfig, SyncClient
 from pysui.sui.sui_crypto import recover_key_and_address
 from pysui.sui.sui_txn import SyncTransaction
@@ -462,6 +462,16 @@ async def get_project(project_id: int, db: Session = Depends(get_db)):
     }
     return project_dict
 
+@app.get("/milestones/{milestone_id}/project")
+async def get_project_by_milestone(milestone_id: int, db: Session = Depends(get_db)):
+    """Get project data by milestone ID"""
+    milestone = db.query(Milestone).filter(Milestone.id == milestone_id).first()
+    if not milestone:
+        raise HTTPException(status_code=404, detail="Milestone not found")
+    
+    # Return the project data for this milestone
+    return await get_project(milestone.project_id, db)
+
 @app.put("/projects/{project_id}")
 async def update_project(project_id: int, project_update: ProjectUpdate, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -721,6 +731,24 @@ async def convert_eth_to_ngn_endpoint(eth_amount: float):
         "exchange_rate": rate,
         "formatted_eth": f"{eth_amount:.6f} ETH",
         "formatted_naira": f"₦{naira_amount:,.2f}"
+    }
+
+@app.get("/milestones/{milestone_id}")
+async def get_milestone(milestone_id: int, db: Session = Depends(get_db)):
+    """Get milestone details"""
+    milestone = db.query(Milestone).filter(Milestone.id == milestone_id).first()
+    if not milestone:
+        raise HTTPException(status_code=404, detail="Milestone not found")
+    
+    return {
+        "id": milestone.id,
+        "project_id": milestone.project_id,
+        "description": milestone.description,
+        "amount": milestone.amount,
+        "status": milestone.status,
+        "order_index": milestone.order_index,
+        "criteria": f"Verify completion of: {milestone.description}",
+        "created_at": milestone.created_at
     }
 
 if __name__ == "__main__":
