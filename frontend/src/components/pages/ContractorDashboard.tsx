@@ -5,8 +5,6 @@ import { Button } from '@/components/ui/Button';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { projectService } from '@/services/projectService';
 
-
-
 export const ContractorDashboard = () => {
   const [activeFilter, setActiveFilter] = useState('Active');
   const [isNavigating, setIsNavigating] = useState(false);
@@ -92,7 +90,7 @@ export const ContractorDashboard = () => {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case 'pending': return 'text-yellow-400';
       case 'approved': return 'text-[#38e07b]';
       case 'in-progress': return 'text-[#9db9a8]';
@@ -101,11 +99,11 @@ export const ContractorDashboard = () => {
   };
 
   const getStatusText = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case 'pending': return 'Verification Pending';
       case 'approved': return 'Approved';
       case 'in-progress': return 'In Progress';
-      default: return 'Unknown';
+      default: return status || 'Unknown';
     }
   };
 
@@ -164,6 +162,18 @@ export const ContractorDashboard = () => {
 
       {/* Main Content Layout */}
       <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8">
+        {/* Error Display - USES 'error' variable */}
+        {error && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-red-500/10 border border-red-500/50 text-red-400 p-4 rounded-lg flex items-center gap-2"
+          >
+            <Icon name="error" />
+            <p>{error}</p>
+          </motion.div>
+        )}
+
         {/* Page Heading & Welcome */}
         <motion.div 
           className="flex flex-col gap-2"
@@ -303,7 +313,10 @@ export const ContractorDashboard = () => {
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
                           <div>
                             <p className="text-xs text-[#9db9a8] uppercase tracking-wider">Status</p>
-                            <p className="text-white font-medium">{project.status}</p>
+                            {/* USES getStatusColor and getStatusText */}
+                            <p className={`font-medium ${getStatusColor(project.status)}`}>
+                              {getStatusText(project.status)}
+                            </p>
                             <p className="text-xs text-[#9db9a8]">
                               Created: {project.created_at ? new Date(project.created_at).toLocaleDateString() : 'N/A'}
                             </p>
@@ -327,7 +340,8 @@ export const ContractorDashboard = () => {
                         <div className="w-full">
                           <div className="flex justify-between text-xs mb-1">
                             <span className="text-white">Project Status</span>
-                            <span className="text-[#38e07b]">{project.status}</span>
+                            {/* USES getStatusColor and getStatusText */}
+                            <span className={getStatusColor(project.status)}>{getStatusText(project.status)}</span>
                           </div>
                           <div className="w-full bg-[#111814] rounded-full h-2 overflow-hidden">
                             <motion.div 
