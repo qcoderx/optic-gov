@@ -427,6 +427,20 @@ async def get_project(project_id: int, db: Session = Depends(get_db)):
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
+    # Retrieve milestones
+    milestones = db.query(Milestone).filter(Milestone.project_id == project_id).order_by(Milestone.order_index).all()
+    milestone_list = []
+    for m in milestones:
+        milestone_list.append({
+            "id": m.id,
+            "description": m.description,
+            "amount": m.amount,
+            "status": m.status,
+            "order_index": m.order_index,
+            # Generate a simple criteria string if missing
+            "criteria": f"Verify completion of: {m.description}" 
+        })
+    
     # Add currency conversion for frontend display
     project_dict = {
         "id": project.id,
@@ -442,7 +456,8 @@ async def get_project(project_id: int, db: Session = Depends(get_db)):
         "gov_wallet": project.gov_wallet,
         "on_chain_id": project.on_chain_id,
         "created_at": project.created_at,
-        "exchange_rate": get_eth_ngn_rate()
+        "exchange_rate": get_eth_ngn_rate(),
+        "milestones": milestone_list  # Added Milestones here
     }
     return project_dict
 

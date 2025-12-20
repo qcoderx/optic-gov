@@ -4,7 +4,6 @@ import { TransactionBlock } from '@mysten/sui.js/transactions';
 const NETWORK = (import.meta.env.VITE_SUI_NETWORK as string) || 'testnet';
 const SUI_CLIENT = new SuiClient({ url: getFullnodeUrl(NETWORK as 'testnet' | 'mainnet' | 'devnet') });
 
-// Contract addresses
 const CONTRACT_ADDRESSES = {
   PACKAGE_ID: import.meta.env.VITE_SUI_PACKAGE_ID || '',
   PROJECT_REGISTRY: import.meta.env.VITE_PROJECT_REGISTRY || '',
@@ -53,10 +52,10 @@ export class SuiService {
     location: { lat: number; lng: number };
   }): Promise<string> {
     try {
+      // FIX: Use TransactionBlock for @mysten/sui.js v0.54.x
       const tx = new TransactionBlock();
       
-      // tx.pure() handles simple types automatically in 0.54.x
-      const [coin] = tx.splitCoins(tx.gas, [tx.pure(projectData.budget * 1_000_000_000)]);
+      const [coin] = tx.splitCoins(tx.gas, [tx.pure(projectData.budget * 1000000000)]);
       
       tx.moveCall({
         target: `${CONTRACT_ADDRESSES.PACKAGE_ID}::optic_gov::create_project`,
@@ -118,31 +117,29 @@ export class SuiService {
     }
   }
 
+  // FIX: Rename projectId to _projectId to suppress unused variable error
+  async getProjectMilestones(_projectId: string): Promise<any[]> {
+    console.warn("Milestones are fetched from DB, not SUI. Returning empty array.");
+    return [];
+  }
+
+  // NEW: Add this to get actual state (funds, evidence) from SUI
   async getProjectState(projectId: string): Promise<any> {
     try {
       const response = await this.client.getObject({
         id: projectId,
-        options: {
-          showContent: true,
-          showType: true
-        }
+        options: { showContent: true }
       });
-
       const content = response.data?.content as any;
       return content?.fields || {};
     } catch (error) {
-      console.error('Error fetching project state from SUI:', error);
+      console.error('Error fetching project state:', error);
       return {};
     }
   }
 
-  async getProjectMilestones(projectId: string): Promise<any[]> {
-    console.warn("Warning: Milestones are stored in DB, not on-chain. Returning empty array from SUI.");
-    return [];
-  }
-
   async releaseFunds(): Promise<string> {
-    throw new Error('releaseFunds can only be called by the backend Oracle - use backend API instead');
+    throw new Error('releaseFunds can only be called by the backend Oracle');
   }
 }
 

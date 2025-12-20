@@ -1,13 +1,13 @@
 export interface Project {
   id: string | number;
   title: string;
-  name?: string; // Backend uses 'name' field
+  name?: string;
   description?: string;
   location?: string;
   status: 'pending' | 'in-progress' | 'completed';
-  budget: number; // ETH amount for backward compatibility
-  total_budget_eth?: number; // ETH amount from backend
-  total_budget_ngn?: number; // NGN amount from backend
+  budget: number;
+  total_budget_eth?: number;
+  total_budget_ngn?: number;
   budget_currency?: 'NGN' | 'ETH';
   progress?: number;
   aiConfidence?: number;
@@ -24,6 +24,14 @@ export interface Project {
   on_chain_id?: number;
   created_at?: string;
   exchange_rate?: number;
+  // ADD THIS FIELD
+  milestones?: {
+    id: number;
+    description: string;
+    amount: number;
+    status: string;
+    criteria?: string; // For AI verification
+  }[];
   evidence?: {
     videoUrl?: string;
     imageUrl?: string;

@@ -33,29 +33,38 @@ export const MilestoneSubmission = () => {
           throw new Error('Invalid project ID');
         }
         
-        // Load real project data from backend (includes milestones from DB)
+        // 1. Load real project data from backend (includes Milestones now)
         const projectData = await projectService.getProject(projectId);
         setProject(projectData);
         
-        // Fetch on-chain state if on_chain_id exists
-        if (projectData.on_chain_id) {
-          const { suiService } = await import('@/services/suiService');
-          const onChainState = await suiService.getProjectState(projectData.on_chain_id);
-          console.log('On-Chain State:', onChainState);
-        }
-        
-        // Set milestone from DB data (milestones are in PostgreSQL, not on-chain)
+        // 2. Load milestone from DB data
         const milestones = projectData.milestones || [];
         if (milestones.length > 0) {
-          setMilestone(milestones[0]);
+          // Use the first active milestone, or the first one if none active
+          const active = milestones.find((m: any) => m.status === 'pending') || milestones[0];
+          setMilestone({
+            ...active,
+            criteria: active.criteria || `Verify completion of ${active.description}`
+          });
         } else {
-          // Default milestone if none in DB
+          // Fallback if no milestones exist in DB yet
           setMilestone({
             id: 1,
-            title: 'Milestone Verification',
-            criteria: 'Submit evidence of project progress'
+            title: "Project Initiation",
+            criteria: "Verify site setup and initial mobilization",
+            status: "pending"
           });
         }
+
+        // 3. Optional: Get on-chain state if ID exists (Funds released, etc.)
+        if (projectData.on_chain_id) {
+          const { suiService } = await import('@/services/suiService');
+          // We don't block on this, just log for debugging
+          suiService.getProjectState(projectData.on_chain_id.toString())
+            .then(state => console.log('SUI On-Chain State:', state))
+            .catch(err => console.warn('Failed to fetch SUI state:', err));
+        }
+
       } else {
         throw new Error('No milestone ID provided');
       }
@@ -66,7 +75,7 @@ export const MilestoneSubmission = () => {
       setIsLoading(false);
     }
   };
-
+// ... rest of the file remains the same ...
   const uploadToBackend = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('video', file);
@@ -261,7 +270,7 @@ export const MilestoneSubmission = () => {
             transition={{ duration: 0.6 }}
           >
             <div className="flex gap-6 justify-between items-end">
-              <p className="text-white text-lg font-bold leading-normal uppercase tracking-wide">Milestone 2 of 5</p>
+              <p className="text-white text-lg font-bold leading-normal uppercase tracking-wide">Milestone {milestone?.order_index || 1} of 5</p>
               <span className="text-[#0df20d] text-sm font-mono">40% Complete</span>
             </div>
             <div className="relative w-full h-3 bg-[#1c291c] rounded-full overflow-hidden">
@@ -282,7 +291,7 @@ export const MilestoneSubmission = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
           >
             <h1 className="text-white tracking-tight text-4xl md:text-5xl font-bold leading-tight uppercase mb-2">
-              Milestone #3 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0df20d] to-emerald-600">Verification</span>
+              Milestone #{milestone?.order_index || 1} <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0df20d] to-emerald-600">Verification</span>
             </h1>
             <p className="text-gray-400 text-lg max-w-2xl">Submit visual evidence to unlock the next tranche of funding. AI verification required.</p>
           </motion.section>
@@ -313,7 +322,7 @@ export const MilestoneSubmission = () => {
                   <h3 className="text-2xl font-bold text-white mb-2">{milestone?.title || 'Milestone Requirements'}</h3>
                   <div className="p-4 bg-[#1c291c]/80 border-l-4 border-[#0df20d] rounded-r-lg">
                     <p className="text-gray-200 font-medium">Requirement:</p>
-                    <p className="text-sm text-gray-400 mt-1">{milestone?.criteria || 'Loading milestone criteria...'}</p>
+                    <p className="text-sm text-gray-400 mt-1">{milestone?.criteria || milestone?.description || 'Loading milestone criteria...'}</p>
                   </div>
                 </div>
               </div>
