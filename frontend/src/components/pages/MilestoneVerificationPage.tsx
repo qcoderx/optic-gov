@@ -20,10 +20,15 @@ export const MilestoneVerificationPage = () => {
   const loadProjectData = async () => {
     try {
       if (!milestoneId) throw new Error('No milestone ID provided');
-      const projectId = parseInt(milestoneId);
-      if (isNaN(projectId)) throw new Error('Invalid project ID');
+      const milestoneIdNum = parseInt(milestoneId);
+      if (isNaN(milestoneIdNum)) throw new Error('Invalid milestone ID');
       
-      const projectData = await projectService.getProject(projectId);
+      // Get project data by milestone ID
+      const response = await fetch(`https://optic-gov.onrender.com/milestones/${milestoneIdNum}/project`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch project data: ${response.status}`);
+      }
+      const projectData = await response.json();
       setProject(projectData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load project');

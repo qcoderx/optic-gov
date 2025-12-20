@@ -28,33 +28,30 @@ export const MilestoneSubmission = () => {
     try {
       setError(null);
       if (milestoneId) {
-        const projectId = parseInt(milestoneId);
-        if (isNaN(projectId)) {
-          throw new Error('Invalid project ID');
+        const milestoneIdNum = parseInt(milestoneId);
+        if (isNaN(milestoneIdNum)) {
+          throw new Error('Invalid milestone ID');
         }
         
-        // 1. Load real project data from backend (includes Milestones now)
-        const projectData = await projectService.getProject(projectId);
+        // 1. Load project data by milestone ID from backend
+        const response = await fetch(`https://optic-gov.onrender.com/milestones/${milestoneIdNum}/project`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch project data: ${response.status}`);
+        }
+        const projectData = await response.json();
         setProject(projectData);
         
-        // 2. Load milestone from DB data
-        const milestones = projectData.milestones || [];
-        if (milestones.length > 0) {
-          // Use the first active milestone, or the first one if none active
-          const active = milestones.find((m: any) => m.status === 'pending') || milestones[0];
-          setMilestone({
-            ...active,
-            criteria: active.criteria || `Verify completion of ${active.description}`
-          });
-        } else {
-          // Fallback if no milestones exist in DB yet
-          setMilestone({
-            id: 1,
-            title: "Project Initiation",
-            criteria: "Verify site setup and initial mobilization",
-            status: "pending"
-          });
+        // 2. Load specific milestone data
+        const milestoneResponse = await fetch(`https://optic-gov.onrender.com/milestones/${milestoneIdNum}`);
+        if (!milestoneResponse.ok) {
+          throw new Error(`Failed to fetch milestone data: ${milestoneResponse.status}`);
         }
+        const milestoneData = await milestoneResponse.json();
+        setMilestone({
+          ...milestoneData,
+          title: milestoneData.description,
+          criteria: milestoneData.criteria || `Verify completion of ${milestoneData.description}`
+        });
 
         // 3. Optional: Get on-chain state if ID exists (Funds released, etc.)
         if (projectData.on_chain_id) {
@@ -144,9 +141,11 @@ export const MilestoneSubmission = () => {
     console.log('🔍 Starting real-time AI verification...');
     
     try {
-      const projectId = project?.id || parseInt(milestoneId || '0');
-      if (isNaN(projectId) || projectId === 0) {
-        throw new Error('Invalid project ID for verification');
+      const projectId = project?.id;
+      const currentMilestoneId = milestone?.id;
+      
+      if (!projectId || !currentMilestoneId) {
+        throw new Error('Missing project or milestone ID for verification');
       }
       
       const { verifyMilestoneWithBackend } = await import('@/services/aiService');
@@ -155,7 +154,7 @@ export const MilestoneSubmission = () => {
         video_url: videoUrl,
         milestone_criteria: milestone?.criteria || "Structural verification",
         project_id: projectId,
-        milestone_index: milestone?.id || 1
+        milestone_index: currentMilestoneId
       });
       
       console.log('✅ Real verification result:', result);
