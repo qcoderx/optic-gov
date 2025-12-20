@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-google-genai 
+google-generativeai 
 web3
 python-multipart
 requests
