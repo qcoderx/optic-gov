@@ -118,10 +118,3 @@ export const useWallet = () => {
     disconnectWallet,
   };
 };
-
-  return {
-    ...walletState,
-    connectWallet,
-    disconnectWallet,
-  };
-};
