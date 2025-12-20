@@ -2,8 +2,8 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui.js/client';
 import { TransactionBlock } from '@mysten/sui.js/transactions';
 import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519';
 
-const NETWORK = 'testnet';
-const SUI_CLIENT = new SuiClient({ url: getFullnodeUrl(NETWORK) });
+const NETWORK = import.meta.env.VITE_SUI_NETWORK || 'testnet';
+const SUI_CLIENT = new SuiClient({ url: getFullnodeUrl(NETWORK as 'testnet' | 'mainnet' | 'devnet') });
 
 // Contract addresses - update these with your deployed contract addresses
 const CONTRACT_ADDRESSES = {

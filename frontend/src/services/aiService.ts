@@ -68,6 +68,27 @@ export const aiService = new AIService();
 // Real-time milestone verification
 export async function verifyMilestoneWithBackend(request: AIAnalysisRequest): Promise<VerificationResult> {
   try {
+    // CRITICAL: Submit evidence to blockchain FIRST before backend verification
+    // This ensures the audit trail is recorded before funds are released
+    try {
+      const { suiService } = await import('./suiService');
+      const { walletService } = await import('./walletService');
+      
+      const walletSigner = walletService.getSigner();
+      if (walletSigner) {
+        await suiService.submitMilestone(walletSigner, request.project_id.toString(), {
+          evidence_url: request.video_url
+        });
+        console.log('✅ Evidence submitted to blockchain first');
+      } else {
+        throw new Error('Wallet not connected - cannot submit evidence');
+      }
+    } catch (suiError) {
+      console.error('❌ CRITICAL: Failed to submit evidence to blockchain:', suiError);
+      throw new Error('Must submit evidence on-chain before verification');
+    }
+    
+    // Now call backend verification (which will release funds if successful)
     const response = await fetch('https://optic-gov.onrender.com/verify-milestone', {
       method: 'POST',
       headers: {
@@ -81,22 +102,6 @@ export async function verifyMilestoneWithBackend(request: AIAnalysisRequest): Pr
     }
 
     const result = await response.json();
-    
-    // Submit to SUI blockchain
-    try {
-      const { suiService } = await import('./suiService');
-      const { walletService } = await import('./walletService');
-      
-      const walletSigner = walletService.getSigner();
-      if (walletSigner) {
-        await suiService.submitMilestone(walletSigner, request.project_id.toString(), {
-          evidence_url: request.video_url
-        });
-      }
-    } catch (suiError) {
-      console.warn('SUI blockchain submission failed:', suiError);
-    }
-    
     return result;
   } catch (error) {
     console.error('Real-time verification failed:', error);

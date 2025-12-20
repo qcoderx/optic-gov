@@ -564,6 +564,11 @@ Return ONLY a JSON object:
         result = json.loads(response.text)
         
         if result["verified"] and result["confidence_score"] >= 95:
+            # CRITICAL: Log IPFS hash BEFORE releasing funds for audit trail
+            print(f"📝 AUDIT LOG: Project {project.id} - Evidence URL: {request.video_url}")
+            print(f"📝 AUDIT LOG: Milestone {request.milestone_index} - Criteria: {request.milestone_criteria}")
+            print(f"📝 AUDIT LOG: Verification Score: {result['confidence_score']}%")
+            
             # CRITICAL: SUI IS PRIORITY - Check Sui first, only use Ethereum as fallback
             
             # 1. PRIORITY: Use Sui if on_chain_id exists (Sui Object ID)
@@ -574,22 +579,28 @@ Return ONLY a JSON object:
                 amount_sui = project.total_budget / milestone_count
                 payout_mist = int(amount_sui * 1_000_000_000)
                 
+                print(f"💰 Releasing {amount_sui} SUI ({payout_mist} MIST) to contractor")
                 sui_tx = await release_funds_sui(str(project.on_chain_id), payout_mist)
                 if sui_tx:
                     result["sui_transaction"] = sui_tx
                     result["primary_chain"] = "sui"
+                    print(f"✅ Funds released - TX: {sui_tx}")
                 else:
                     result["error"] = "Sui transaction failed"
+                    print(f"❌ Sui transaction failed")
             # 2. FALLBACK: Only use Ethereum if Sui is not configured
             elif hasattr(project, 'sui_project_id') and project.sui_project_id:
                 eth_tx = await release_funds(int(project.sui_project_id), request.milestone_index)
                 if eth_tx:
                     result["ethereum_transaction"] = eth_tx
                     result["primary_chain"] = "ethereum"
+                    print(f"✅ Ethereum funds released - TX: {eth_tx}")
                 else:
                     result["error"] = "Ethereum transaction failed"
+                    print(f"❌ Ethereum transaction failed")
             else:
                 result["error"] = "No blockchain configuration found"
+                print(f"❌ No on_chain_id or sui_project_id found")
         
         return VerificationResponse(**result)
         
