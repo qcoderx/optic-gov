@@ -39,7 +39,7 @@ app.add_middleware(
 
 # Configure Gemini
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-3-flash')
+model = genai.GenerativeModel('gemini-3-flash-preview')
 
 # Configure Web3
 w3 = Web3(Web3.HTTPProvider(os.getenv("SEPOLIA_RPC_URL")))
