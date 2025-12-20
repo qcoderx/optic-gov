@@ -35,7 +35,7 @@ export const ContractorProjectView = () => {
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
         />
         <h3 className="text-xl font-bold text-white mb-2 mt-6">Analyzing Footage...</h3>
-        <p className="text-[#9eb7a8] text-center max-w-xs">Gemini AI is verifying concrete density and surface integrity.</p>
+        <p className="text-[#9eb7a8] text-center max-w-xs">AI is verifying concrete density and surface integrity.</p>
       </div>
     );
   }
@@ -201,7 +201,7 @@ export const ContractorProjectView = () => {
             <div className="flex items-start gap-2 px-4 py-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
               <Icon name="info" className="text-blue-400 shrink-0 text-lg mt-0.5" />
               <p className="text-xs text-blue-200 leading-relaxed">
-                Verification requires a 10s video scan of the site. Gemini 3 Flash will analyze the footage for concrete curing status.
+                Verification requires a 10s video scan of the site. AI will analyze the footage for concrete curing status.
               </p>
             </div>
           </motion.div>
@@ -262,9 +262,9 @@ export const ContractorProjectView = () => {
       <footer className="py-6 text-center text-xs text-[#9eb7a8] border-t border-[#29382f] bg-[#122017]">
         <div className="flex items-center justify-center gap-2 mb-2">
           <span>Powered by</span>
-          <span className="font-bold text-white">Ethereum</span>
+          <span className="font-bold text-white">Sui</span>
           <span>&</span>
-          <span className="font-bold text-white">Google Gemini</span>
+          <span className="font-bold text-white">AI Oracle</span>
         </div>
         <p>© 2024 Optic-Gov Protocol. All rights reserved.</p>
       </footer>

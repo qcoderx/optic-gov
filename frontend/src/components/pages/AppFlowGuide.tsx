@@ -67,9 +67,9 @@ export const AppFlowGuide = () => {
               <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold">3</div>
               <h2 className="text-xl font-bold">AI Verification</h2>
             </div>
-            <p className="text-[#9eb7a8] mb-3">🤖 Gemini AI analyzes video against milestone criteria</p>
+            <p className="text-[#9eb7a8] mb-3">🤖 AI analyzes video against milestone criteria</p>
             <div className="bg-[#29382f] p-3 rounded text-sm">
-              <strong>What happens:</strong> AI checks if work matches requirements, verifies authenticity, approves/rejects
+              <strong>What happens:</strong> AI Oracle checks if work matches requirements, verifies authenticity, approves/rejects
             </div>
           </motion.div>
 

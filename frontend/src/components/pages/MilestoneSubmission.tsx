@@ -438,7 +438,7 @@ export const MilestoneSubmission = () => {
                 <div className="bg-[#1c291c] px-4 py-2 border-b border-[#283928] flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Icon name="terminal" size="sm" className="text-gray-400" />
-                    <span className="text-xs font-mono text-gray-300">Gemini-3-Flash Oracle</span>
+                    <span className="text-xs font-mono text-gray-300">AI Oracle</span>
                   </div>
                   <div className="flex gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full bg-red-500/20" />
@@ -465,7 +465,7 @@ export const MilestoneSubmission = () => {
                     
                     {/* Simulating active analysis */}
                     <div className="mt-4 border-l-2 border-[#0df20d]/50 pl-3 py-1">
-                      <p className="text-white mb-1">&gt; Analysis Mode: <span className="text-[#0df20d]">Gemini 3 Flash</span></p>
+                      <p className="text-white mb-1">&gt; Analysis Mode: <span className="text-[#0df20d]">AI</span></p>
                       <motion.p 
                         className="text-gray-400"
                         animate={{ opacity: [0.5, 1, 0.5] }}

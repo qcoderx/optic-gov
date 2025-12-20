@@ -307,7 +307,7 @@ export const ContractorDashboard = () => {
                           </h3>
                           <div className="flex items-center gap-1 text-xs text-[#9db9a8] bg-[#111814] px-2 py-1 rounded border border-[#28392f]">
                             <Icon name="smart_toy" size="sm" className="text-[#38e07b]" />
-                            Gemini Active
+                            AI Active
                           </div>
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
@@ -432,9 +432,9 @@ export const ContractorDashboard = () => {
                 }}
                 transition={{ duration: 4, repeat: Infinity }}
               />
-              <h3 className="text-lg font-bold text-white relative z-10">Gemini Verification</h3>
+              <h3 className="text-lg font-bold text-white relative z-10">AI Verification</h3>
               <p className="text-sm text-[#9db9a8] mt-2 relative z-10">
-                All photos uploaded are analyzed by Gemini 3 Flash for authenticity and milestone completion accuracy.
+                All photos uploaded are analyzed by AI for authenticity and milestone completion accuracy.
               </p>
               <Button 
                 variant="secondary" 

@@ -142,7 +142,7 @@ export const LoginPage = () => {
               
               <p className="text-[#9cbaa6] text-lg font-normal leading-relaxed max-w-sm">
                 <TypewriterText 
-                  text="Prevent corruption in public projects with immutable audit trails powered by Ethereum Smart Contracts."
+                  text="Prevent corruption in public projects with immutable audit trails powered by Sui Smart Contracts."
                   delay={3000}
                   speed={40}
                 />
@@ -187,7 +187,7 @@ export const LoginPage = () => {
                 >
                   <Icon name="verified_user" size="sm" />
                 </motion.div>
-                Secured by Gemini AI & Ethereum
+                Secured by AI & Sui
               </motion.div>
             </motion.div>
           </div>

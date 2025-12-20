@@ -158,7 +158,7 @@ export const DashboardPage = () => {
                             <div className="bg-black/70 backdrop-blur-md p-3 rounded-lg border border-white/10 max-w-sm">
                               <p className="text-[10px] text-primary uppercase font-bold mb-1 flex items-center gap-1">
                                 <Icon name="smart_toy" className="text-xs" />
-                                Gemini 2.5 Flash Analysis
+                                AI Analysis
                               </p>
                               <p className="text-xs text-white leading-relaxed">
                                 {selectedProject.evidence.aiAnalysis}
