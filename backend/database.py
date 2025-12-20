@@ -50,6 +50,7 @@ class Milestone(Base):
     amount = Column(Float)
     order_index = Column(Integer)
     is_completed = Column(Boolean, default=False)
+    status = Column(String, default="pending")  # pending, completed, verified
     created_at = Column(DateTime, default=datetime.utcnow)
     
     project = relationship("Project", back_populates="milestones")

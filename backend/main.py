@@ -152,13 +152,14 @@ async def release_funds_sui(project_object_id: str, amount_mist: int):
             print("❌ Missing SUI_PACKAGE_ID or SUI_ORACLE_CAP_ID")
             return None
         
-        # Call the move function: release_payment(OracleCap, Project, u64)
+        # CRITICAL FIX: Pass object IDs directly, NOT as vectors
+        # The Move function expects single objects, not Vector<Object>
         txn.move_call(
             target=f"{package_id}::optic_gov::release_payment",
             arguments=[
-                txn.make_move_object_vec([oracle_cap_id]),  # OracleCap
-                txn.make_move_object_vec([project_object_id]),  # Project
-                amount_mist  # u64 amount
+                oracle_cap_id,      # Pass ID string directly
+                project_object_id,  # Pass ID string directly
+                str(amount_mist)    # Pass u64 as string
             ],
             type_arguments=[]
         )
