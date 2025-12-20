@@ -318,6 +318,7 @@ export const GovernorMapDashboard = () => {
                     );
                   })
                 )}
+              </div>
             </div>
           </div>
 
