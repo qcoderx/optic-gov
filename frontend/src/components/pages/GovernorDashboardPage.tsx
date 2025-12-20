@@ -37,7 +37,9 @@ export const GovernorDashboardPage = () => {
         project_longitude: projectLocation.lng,
         location_tolerance_km: 1.0,
         gov_wallet: "0x12...89", // This should come from connected wallet
-        on_chain_id: Math.floor(Math.random() * 10000),
+        // FIX: Converted to string to match ProjectCreateRequest interface
+        // Ideally, this ID comes from the actual Sui transaction response
+        on_chain_id: "0x" + Math.floor(Math.random() * 10000).toString(16),
       };
 
       await projectService.createProject(projectData);
