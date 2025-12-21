@@ -44,6 +44,13 @@ export const GovernorDashboardPage = () => {
     }
   };
 
+  const handleNavigation = (path: string) => {
+    setIsNavigating(true);
+    setTimeout(() => {
+      navigate(path);
+    }, 500);
+  };
+
   const handleCreateProject = async () => {
     if (!projectName || !contractorAddress || !budget) {
       alert("Please fill in all required fields");
@@ -84,13 +91,10 @@ export const GovernorDashboardPage = () => {
       setMilestoneDescription("");
       setManualMilestones([""]);
 
-      setTimeout(() => {
-        navigate("/governor/projects");
-      }, 500);
+      handleNavigation("/governor/projects");
     } catch (error) {
       console.error("Failed to create project:", error);
       alert("Failed to create project. See console for details.");
-    } finally {
       setIsCreating(false);
     }
   };
@@ -99,7 +103,7 @@ export const GovernorDashboardPage = () => {
 
   return (
     <div className="bg-[#111714] text-white overflow-hidden h-screen flex font-display">
-      {/* Sidebar (Same as before) */}
+      {/* Sidebar */}
       <motion.aside
         className="w-72 bg-[#111714] border-r border-[#29382f] flex-col justify-between hidden lg:flex p-6"
         initial={{ x: -300 }}
@@ -118,12 +122,15 @@ export const GovernorDashboardPage = () => {
             </div>
           </motion.div>
           <nav className="flex flex-col gap-2">
-            <motion.a className="flex items-center gap-3 px-4 py-3 rounded-full bg-[#29382f] text-white" href="#">
+            <motion.button 
+              className="flex items-center gap-3 px-4 py-3 rounded-full bg-[#29382f] text-white w-full text-left" 
+              onClick={() => {}}
+            >
               <Icon name="add_circle" /><span className="text-sm font-bold">Create Project</span>
-            </motion.a>
+            </motion.button>
             <motion.button 
               className="flex items-center gap-3 px-4 py-3 text-[#9eb7a8] hover:text-white hover:bg-[#29382f]/50 rounded-full transition-colors w-full text-left"
-              onClick={() => navigate("/governor/projects")}
+              onClick={() => handleNavigation("/governor/projects")}
             >
               <Icon name="folder_open" /><span className="text-sm font-medium">Active Projects</span>
             </motion.button>
