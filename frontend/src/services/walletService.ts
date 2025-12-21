@@ -2,21 +2,23 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui.js/client';
 
 export class WalletService {
   private client: SuiClient;
-  private connectedWallet: any = null;
+  private signAndExecuteFn: any = null;
 
   constructor() {
     this.client = new SuiClient({ url: getFullnodeUrl('testnet') });
   }
 
+  setSignAndExecute(fn: any) {
+    this.signAndExecuteFn = fn;
+  }
+
   async connectWallet(): Promise<string> {
     try {
-      // Use browser wallet extension (Sui Wallet, Suiet, Ethos, etc.)
       if (typeof window !== 'undefined' && (window as any).suiWallet) {
         await (window as any).suiWallet.requestPermissions();
         const accounts = await (window as any).suiWallet.getAccounts();
         
         if (accounts.length > 0) {
-          this.connectedWallet = (window as any).suiWallet;
           const address = accounts[0];
           localStorage.setItem('sui_wallet_address', address);
           return address;
@@ -44,10 +46,8 @@ export class WalletService {
   }
 
   getSigner(): any {
-    return this.connectedWallet ? {
-      signAndExecuteTransactionBlock: async (params: any) => {
-        return await this.connectedWallet.signAndExecuteTransactionBlock(params);
-      }
+    return this.signAndExecuteFn ? {
+      signAndExecuteTransactionBlock: this.signAndExecuteFn
     } : null;
   }
 
@@ -56,7 +56,7 @@ export class WalletService {
   }
 
   disconnect(): void {
-    this.connectedWallet = null;
+    this.signAndExecuteFn = null;
     localStorage.removeItem('sui_wallet_address');
   }
 }

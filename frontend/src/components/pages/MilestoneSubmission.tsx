@@ -3,9 +3,13 @@ import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { useSuiWallet } from '@/hooks/useSuiWallet';
+import { ConnectButton } from '@mysten/dapp-kit';
+import { walletService } from '@/services/walletService';
 
 export const MilestoneSubmission = () => {
   const { milestoneId } = useParams();
+  const { address, isConnected, signAndExecute } = useSuiWallet();
   const [project, setProject] = useState<any>(null);
   const [milestone, setMilestone] = useState<any>(null);
   const [comments, setComments] = useState('');
@@ -18,6 +22,13 @@ export const MilestoneSubmission = () => {
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [verificationResult, setVerificationResult] = useState<any>(null);
+
+  useEffect(() => {
+    if (signAndExecute && address) {
+      walletService.setSignAndExecute(signAndExecute);
+      localStorage.setItem('sui_wallet_address', address);
+    }
+  }, [signAndExecute, address]);
 
   useEffect(() => {
     loadProjectData();
@@ -250,12 +261,17 @@ export const MilestoneSubmission = () => {
             />
             Mainnet Live
           </motion.div>
-          <motion.button 
-            className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-[#283928] border border-[#0df20d]/20 hover:border-[#0df20d]/50 transition-colors text-white text-sm font-bold leading-normal tracking-[0.015em]"
-            whileHover={{ scale: 1.05 }}
-          >
-            <span className="truncate font-mono">Connected: 0x12...89</span>
-          </motion.button>
+          {isConnected && address ? (
+            <div className="flex items-center gap-2 bg-[#0df20d]/10 border border-[#0df20d]/30 rounded px-3 py-2">
+              <Icon name="account_balance_wallet" size="sm" className="text-[#0df20d]" />
+              <span className="text-white text-sm font-mono">{`${address.slice(0, 6)}...${address.slice(-4)}`}</span>
+            </div>
+          ) : (
+            <ConnectButton 
+              connectText="Connect Wallet"
+              className="bg-[#283928] border border-[#0df20d]/20 hover:border-[#0df20d]/50 transition-colors text-white text-sm font-bold px-4 py-2 rounded"
+            />
+          )}
         </div>
       </motion.header>
 
