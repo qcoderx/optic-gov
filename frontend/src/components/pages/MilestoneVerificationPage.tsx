@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
-import { verifyMilestoneWithBackend } from '@/services/aiService';
 import { useSuiWallet } from '@/hooks/useSuiWallet';
 import { ConnectButton } from '@mysten/dapp-kit';
 
@@ -39,25 +38,33 @@ export const MilestoneVerificationPage = () => {
     }
   };
 
-  const handleVerifyMilestone = async () => {
+  const handleDemoBypass = async () => {
     if (!project) return;
     
     setIsVerifying(true);
     try {
-      // Call real backend verification
-      await verifyMilestoneWithBackend({
-        video_url: 'pending_upload',
-        milestone_criteria: 'Foundation and structural work',
-        project_id: project.id,
-        milestone_index: 1
+      const response = await fetch('https://optic-gov.onrender.com/demo-approve-milestone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: project.id,
+          milestone_id: parseInt(milestoneId || '0'),
+          bypass: true
+        })
       });
       
-      // Navigate to milestone submission page
-      window.location.href = `/contractor/milestone/${milestoneId}`;
+      if (!response.ok) throw new Error('Demo approval failed');
+      
+      alert('✅ Demo: Milestone approved! Funds released.');
+      window.location.href = '/contractor';
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Verification failed');
+      setError(err instanceof Error ? err.message : 'Demo approval failed');
       setIsVerifying(false);
     }
+  };
+
+  const handleVerifyMilestone = async () => {
+    window.location.href = `/contractor/milestone/${milestoneId}`;
   };
 
   if (loading) return <div className="bg-[#0a0a0a] text-white min-h-screen flex items-center justify-center">Loading...</div>;
@@ -167,20 +174,17 @@ export const MilestoneVerificationPage = () => {
             </div>
           </motion.div>
 
-          {/* Verify Button */}
+          {/* Verify Buttons */}
           <motion.div 
-            className="text-center"
+            className="text-center space-y-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
+            {/* Demo Bypass Button */}
             <Button 
-              className={`w-full h-16 text-lg font-bold uppercase tracking-wider rounded-xl transition-all ${
-                isVerifying 
-                  ? 'bg-[#1c291c] border border-[#283928] text-gray-500 cursor-not-allowed'
-                  : 'bg-[#0df20d] hover:bg-[#0be00b] text-[#0a0a0a] shadow-[0_0_15px_rgba(13,242,13,0.4)]'
-              }`}
-              onClick={handleVerifyMilestone}
+              className="w-full h-16 text-lg font-bold uppercase tracking-wider rounded-xl transition-all bg-yellow-500 hover:bg-yellow-400 text-black shadow-[0_0_15px_rgba(234,179,8,0.4)]"
+              onClick={handleDemoBypass}
               disabled={isVerifying}
             >
               {isVerifying ? (
@@ -191,14 +195,29 @@ export const MilestoneVerificationPage = () => {
                   >
                     <Icon name="refresh" />
                   </motion.div>
-                  Initializing Verification...
+                  Processing Demo Approval...
                 </div>
               ) : (
-                'Verify Milestone via AI Oracle'
+                <>
+                  <Icon name="bolt" className="mr-2" />
+                  DEMO: Instant Approve & Release Funds
+                </>
               )}
             </Button>
-            <p className="text-gray-400 text-sm mt-4 max-w-md mx-auto">
-              Verification requires a 10s video scan of the site. Gemini 3 Flash will analyze the footage for concrete curing status.
+            <p className="text-yellow-500 text-xs font-bold uppercase tracking-wider">
+              ⚠️ Demo Mode: Bypasses AI verification
+            </p>
+
+            {/* Regular Verification Button */}
+            <Button 
+              className="w-full h-16 text-lg font-bold uppercase tracking-wider rounded-xl transition-all bg-[#0df20d] hover:bg-[#0be00b] text-[#0a0a0a] shadow-[0_0_15px_rgba(13,242,13,0.4)]"
+              onClick={handleVerifyMilestone}
+            >
+              <Icon name="videocam" className="mr-2" />
+              Upload Video for AI Verification
+            </Button>
+            <p className="text-gray-400 text-sm max-w-md mx-auto">
+              Standard verification requires a 10s video scan. Gemini 3 Flash will analyze the footage.
             </p>
           </motion.div>
 

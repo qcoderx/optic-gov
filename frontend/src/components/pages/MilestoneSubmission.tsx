@@ -22,6 +22,9 @@ export const MilestoneSubmission = () => {
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [verificationResult, setVerificationResult] = useState<any>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
 
   useEffect(() => {
     if (signAndExecute && address) {
@@ -183,6 +186,40 @@ export const MilestoneSubmission = () => {
         compliance_score: 0
       });
       setShowModal(true);
+    }
+  };
+
+  const startCameraRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      const chunks: Blob[] = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const file = new File([blob], `milestone-${Date.now()}.webm`, { type: 'video/webm' });
+        setVideoFile(file);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      setMediaRecorder(recorder);
+      setRecordedChunks(chunks);
+      recorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Camera access denied:', err);
+      alert('Camera access required for video verification');
+    }
+  };
+
+  const stopCameraRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      setIsRecording(false);
     }
   };
 
@@ -395,38 +432,57 @@ export const MilestoneSubmission = () => {
                 </div>
                 
                 {/* Dropzone / Camera View */}
-                <motion.div 
-                  className="relative w-full aspect-video bg-[#0a0a0a] border-2 border-dashed border-[#283928] hover:border-[#0df20d] hover:bg-[#162016] rounded-lg transition-all duration-300 flex flex-col items-center justify-center cursor-pointer group overflow-hidden"
-                  whileHover={{ scale: 1.02 }}
-                  onClick={() => document.getElementById('video-upload')?.click()}
-                >
-                  <input
-                    id="video-upload"
-                    type="file"
-                    accept="video/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0iIzBkZjIwZCIgZmlsbC1vcGFjaXR5PSIwLjEiLz4KPC9zdmc+')] opacity-20 pointer-events-none" />
-                  
-                  {/* Content inside dropzone */}
-                  <div className="flex flex-col items-center gap-4 z-10 p-6 text-center group-hover:scale-105 transition-transform duration-300">
-                    <motion.div 
-                      className="size-16 rounded-full bg-[#1c291c] flex items-center justify-center border border-[#0df20d]/30 group-hover:border-[#0df20d] group-hover:shadow-[0_0_15px_rgba(13,242,13,0.3)] transition-all"
-                      animate={{ 
-                        boxShadow: ['0 0 0 rgba(13,242,13,0)', '0 0 15px rgba(13,242,13,0.3)', '0 0 0 rgba(13,242,13,0)']
-                      }}
-                      transition={{ duration: 3, repeat: Infinity }}
-                    >
-                      <Icon name="upload_file" className="text-3xl text-[#0df20d]" />
-                    </motion.div>
-                    <div>
-                      <p className="text-white font-bold text-lg">{videoFile ? videoFile.name : 'Upload Video'}</p>
-                      <p className="text-[#9cba9c] text-sm mt-1">{videoFile ? 'Click to change file' : 'or drag and drop here'}</p>
+                <div className="space-y-3">
+                  {/* Camera Record Button */}
+                  <motion.button
+                    className={`w-full h-14 text-base font-bold uppercase tracking-wider rounded transition-all flex items-center justify-center gap-2 ${
+                      isRecording
+                        ? 'bg-red-600 hover:bg-red-700 text-white animate-pulse'
+                        : 'bg-[#0df20d] hover:bg-[#0be00b] text-[#0a0a0a]'
+                    }`}
+                    onClick={isRecording ? stopCameraRecording : startCameraRecording}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Icon name={isRecording ? 'stop' : 'videocam'} />
+                    {isRecording ? 'Stop Recording' : 'Record with Camera'}
+                  </motion.button>
+
+                  <div className="text-center text-gray-500 text-xs uppercase tracking-wider">OR</div>
+
+                  {/* File Upload */}
+                  <motion.div 
+                    className="relative w-full aspect-video bg-[#0a0a0a] border-2 border-dashed border-[#283928] hover:border-[#0df20d] hover:bg-[#162016] rounded-lg transition-all duration-300 flex flex-col items-center justify-center cursor-pointer group overflow-hidden"
+                    whileHover={{ scale: 1.02 }}
+                    onClick={() => document.getElementById('video-upload')?.click()}
+                  >
+                    <input
+                      id="video-upload"
+                      type="file"
+                      accept="video/*"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0iIzBkZjIwZCIgZmlsbC1vcGFjaXR5PSIwLjEiLz4KPC9zdmc+')] opacity-20 pointer-events-none" />
+                    
+                    <div className="flex flex-col items-center gap-4 z-10 p-6 text-center group-hover:scale-105 transition-transform duration-300">
+                      <motion.div 
+                        className="size-16 rounded-full bg-[#1c291c] flex items-center justify-center border border-[#0df20d]/30 group-hover:border-[#0df20d] group-hover:shadow-[0_0_15px_rgba(13,242,13,0.3)] transition-all"
+                        animate={{ 
+                          boxShadow: ['0 0 0 rgba(13,242,13,0)', '0 0 15px rgba(13,242,13,0.3)', '0 0 0 rgba(13,242,13,0)']
+                        }}
+                        transition={{ duration: 3, repeat: Infinity }}
+                      >
+                        <Icon name="upload_file" className="text-3xl text-[#0df20d]" />
+                      </motion.div>
+                      <div>
+                        <p className="text-white font-bold text-lg">{videoFile ? videoFile.name : 'Upload Video File'}</p>
+                        <p className="text-[#9cba9c] text-sm mt-1">{videoFile ? 'Click to change file' : 'or drag and drop here'}</p>
+                      </div>
+                      <p className="text-xs text-gray-500 font-mono">MP4, MOV, WEBM up to 500MB</p>
                     </div>
-                    <p className="text-xs text-gray-500 font-mono">MP4, MOV up to 500MB</p>
-                  </div>
-                </motion.div>
+                  </motion.div>
+                </div>
 
                 <motion.button 
                   className={`w-full h-14 text-base font-bold uppercase tracking-wider rounded transition-all flex items-center justify-center gap-2 group ${
