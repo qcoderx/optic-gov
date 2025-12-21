@@ -24,7 +24,6 @@ export const MilestoneSubmission = () => {
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
 
   useEffect(() => {
     if (signAndExecute && address) {
@@ -207,7 +206,6 @@ export const MilestoneSubmission = () => {
       };
 
       setMediaRecorder(recorder);
-      setRecordedChunks(chunks);
       recorder.start();
       setIsRecording(true);
     } catch (err) {
