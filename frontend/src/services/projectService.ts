@@ -11,15 +11,18 @@ class ProjectService {
   async getAllProjects(): Promise<ProjectsResponse> {
     try {
       const response = await fetch(`${API_BASE_URL}/projects`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}: Failed to fetch projects`);
+      if (!response.ok)
+        throw new Error(`HTTP ${response.status}: Failed to fetch projects`);
       const data = await response.json();
       return {
         projects: data.projects || data || [],
-        exchange_rate: data.exchange_rate || 1600
+        exchange_rate: data.exchange_rate || 1600,
       };
     } catch (error) {
-      console.error('ProjectService.getAllProjects error:', error);
-      throw new Error('Unable to connect to backend. Please check if the server is running.');
+      console.error("ProjectService.getAllProjects error:", error);
+      throw new Error(
+        "Unable to connect to backend. Please check if the server is running."
+      );
     }
   }
 
@@ -27,20 +30,27 @@ class ProjectService {
     if (!projectId || isNaN(projectId) || projectId <= 0) {
       throw new Error(`Invalid project ID: ${projectId}`);
     }
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/projects/${projectId}`);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to fetch project (${response.status}): ${errorText}`);
+        throw new Error(
+          `Failed to fetch project (${response.status}): ${errorText}`
+        );
       }
-      
+
       const data = await response.json();
       return this.transformProject(data);
     } catch (error) {
-      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        throw new Error('Unable to connect to server. Please check your internet connection.');
+      if (
+        error instanceof TypeError &&
+        error.message.includes("Failed to fetch")
+      ) {
+        throw new Error(
+          "Unable to connect to server. Please check your internet connection."
+        );
       }
       throw error;
     }
@@ -60,22 +70,22 @@ class ProjectService {
         },
         body: JSON.stringify(projectData),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.text();
         throw new Error(`HTTP ${response.status}: ${errorData}`);
       }
-      
+
       const result = await response.json();
-      
+
       // Also create on SUI blockchain
       try {
-        const { suiService } = await import('./suiService');
-        const { walletService } = await import('./walletService');
-        
+        const { suiService } = await import("./suiService");
+        const { walletService } = await import("./walletService");
+
         const walletSigner = walletService.getSigner();
         if (!walletSigner) {
-          console.warn('No wallet connected for SUI creation');
+          console.warn("No wallet connected for SUI creation");
         } else {
           const objectId = await suiService.createProject(walletSigner, {
             name: project.name,
@@ -84,24 +94,24 @@ class ProjectService {
             contractor: project.contractor_wallet,
             location: {
               lat: project.project_latitude,
-              lng: project.project_longitude
-            }
+              lng: project.project_longitude,
+            },
           });
-          
+
           // Save the on-chain ID back to the database
           await fetch(`${API_BASE_URL}/projects/${result.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ on_chain_id: objectId })
+            body: JSON.stringify({ on_chain_id: objectId }),
           });
         }
       } catch (suiError) {
-        console.warn('SUI blockchain creation failed:', suiError);
+        console.warn("SUI blockchain creation failed:", suiError);
       }
-      
+
       return result;
     } catch (error) {
-      console.error('ProjectService.createProject error:', error);
+      console.error("ProjectService.createProject error:", error);
       throw error;
     }
   }
@@ -128,6 +138,70 @@ class ProjectService {
     if (!response.ok) throw new Error("Failed to delete project");
   }
 
+  async createManualMilestone(milestone: {
+    project_id: number;
+    description: string;
+    amount: number;
+    order_index: number;
+  }): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/milestones`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(milestone),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorData}`);
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error("ProjectService.createManualMilestone error:", error);
+      throw error;
+    }
+  }
+
+  async getMilestone(milestoneId: number): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/milestones/${milestoneId}`);
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorData}`);
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error("ProjectService.getMilestone error:", error);
+      throw error;
+    }
+  }
+
+  async getProjectByMilestone(milestoneId: number): Promise<any> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/milestones/${milestoneId}/project`
+      );
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorData}`);
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error("ProjectService.getProjectByMilestone error:", error);
+      throw error;
+    }
+  }
+
   // Transform backend project to frontend format
   transformProject(backendProject: any): Project {
     return {
@@ -139,8 +213,10 @@ class ProjectService {
         4
       )}, Lng: ${backendProject.project_longitude?.toFixed(4)}`,
       status: "pending", // Default status, can be enhanced based on milestones
-      budget: backendProject.total_budget_sui || backendProject.total_budget_eth || 0,
-      total_budget_sui: backendProject.total_budget_sui || backendProject.total_budget_eth,
+      budget:
+        backendProject.total_budget_sui || backendProject.total_budget_eth || 0,
+      total_budget_sui:
+        backendProject.total_budget_sui || backendProject.total_budget_eth,
       total_budget_ngn: backendProject.total_budget_ngn,
       budget_currency: "NGN", // Default to NGN for Nigerian government
       coordinates:

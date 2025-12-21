@@ -243,6 +243,12 @@ class ConvertRequest(BaseModel):
     from_currency: str  # "NGN" or "SUI"
     to_currency: str    # "NGN" or "SUI"
 
+class ManualMilestoneCreate(BaseModel):
+    project_id: int
+    description: str
+    amount: float
+    order_index: int
+
 @app.post("/register")
 async def register_contractor(contractor: ContractorRegister, db: Session = Depends(get_db)):
     if db.query(Contractor).filter(Contractor.email == contractor.email).first():
@@ -657,7 +663,7 @@ async def get_milestone(milestone_id: int, db: Session = Depends(get_db)):
     milestone = db.query(Milestone).filter(Milestone.id == milestone_id).first()
     if not milestone:
         raise HTTPException(status_code=404, detail="Milestone not found")
-    
+
     return {
         "id": milestone.id,
         "project_id": milestone.project_id,
@@ -667,6 +673,40 @@ async def get_milestone(milestone_id: int, db: Session = Depends(get_db)):
         "order_index": milestone.order_index,
         "criteria": f"Verify completion of: {milestone.description}",
         "created_at": milestone.created_at
+    }
+
+@app.post("/milestones")
+async def create_manual_milestone(milestone: ManualMilestoneCreate, db: Session = Depends(get_db)):
+    """Create a manual milestone for a project"""
+    # Verify project exists
+    project = db.query(Project).filter(Project.id == milestone.project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Convert amount to SUI if needed (assuming amount is in NGN for now)
+    amount_sui = convert_ngn_to_sui(milestone.amount) if milestone.amount > 0 else milestone.amount
+
+    # Create milestone
+    db_milestone = Milestone(
+        project_id=milestone.project_id,
+        description=milestone.description,
+        amount=amount_sui,
+        order_index=milestone.order_index,
+        status="pending"
+    )
+    db.add(db_milestone)
+    db.commit()
+    db.refresh(db_milestone)
+
+    return {
+        "id": db_milestone.id,
+        "project_id": db_milestone.project_id,
+        "description": db_milestone.description,
+        "amount": db_milestone.amount,
+        "amount_ngn": convert_sui_to_ngn(db_milestone.amount),
+        "status": db_milestone.status,
+        "order_index": db_milestone.order_index,
+        "created_at": db_milestone.created_at
     }
 
 if __name__ == "__main__":

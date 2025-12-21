@@ -15,17 +15,28 @@ export interface AIAnalysisRequest {
   milestone_index: number;
 }
 
-class AIService {
-  private baseUrl = 'https://optic-gov.onrender.com';
+export interface MilestoneGenerateRequest {
+  project_description: string;
+  total_budget: number;
+}
 
-  async verifyMilestone(request: AIAnalysisRequest): Promise<VerificationResult> {
+export interface MilestoneGenerateResponse {
+  milestones: string[];
+}
+
+class AIService {
+  private baseUrl = "https://optic-gov.onrender.com";
+
+  async verifyMilestone(
+    request: AIAnalysisRequest
+  ): Promise<VerificationResult> {
     try {
       const response = await fetch(`${this.baseUrl}/verify-milestone`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(request)
+        body: JSON.stringify(request),
       });
 
       if (!response.ok) {
@@ -34,62 +45,95 @@ class AIService {
 
       return await response.json();
     } catch (error) {
-      console.error('AI verification error:', error);
+      console.error("AI verification error:", error);
       throw error; // No mock fallback
     }
   }
 
   async uploadVideo(file: File): Promise<string> {
     const formData = new FormData();
-    formData.append('video', file);
-    
+    formData.append("video", file);
+
     const response = await fetch(`${this.baseUrl}/upload-video`, {
-      method: 'POST',
+      method: "POST",
       body: formData,
     });
-    
+
     if (!response.ok) {
       throw new Error(`Upload failed: ${response.status}`);
     }
-    
+
     const data = await response.json();
     return data.video_url || data.url;
+  }
+
+  async generateMilestones(request: MilestoneGenerateRequest): Promise<MilestoneGenerateResponse> {
+    try {
+      const response = await fetch(`${this.baseUrl}/generate-milestones`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Milestone generation failed: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("AI milestone generation error:", error);
+      throw error;
+    }
   }
 }
 
 export const aiService = new AIService();
 
 // Real-time milestone verification
-export async function verifyMilestoneWithBackend(request: AIAnalysisRequest): Promise<VerificationResult> {
+export async function verifyMilestoneWithBackend(
+  request: AIAnalysisRequest
+): Promise<VerificationResult> {
   try {
     // CRITICAL: Submit evidence to blockchain FIRST before backend verification
     // This ensures the audit trail is recorded before funds are released
     try {
-      const { suiService } = await import('./suiService');
-      const { walletService } = await import('./walletService');
-      
+      const { suiService } = await import("./suiService");
+      const { walletService } = await import("./walletService");
+
       const walletSigner = walletService.getSigner();
       if (walletSigner) {
-        await suiService.submitMilestone(walletSigner, request.project_id.toString(), {
-          evidence_url: request.video_url
-        });
-        console.log('✅ Evidence submitted to blockchain first');
+        await suiService.submitMilestone(
+          walletSigner,
+          request.project_id.toString(),
+          {
+            evidence_url: request.video_url,
+          }
+        );
+        console.log("✅ Evidence submitted to blockchain first");
       } else {
-        throw new Error('Wallet not connected - cannot submit evidence');
+        throw new Error("Wallet not connected - cannot submit evidence");
       }
     } catch (suiError) {
-      console.error('❌ CRITICAL: Failed to submit evidence to blockchain:', suiError);
-      throw new Error('Must submit evidence on-chain before verification');
+      console.error(
+        "❌ CRITICAL: Failed to submit evidence to blockchain:",
+        suiError
+      );
+      throw new Error("Must submit evidence on-chain before verification");
     }
-    
+
     // Now call backend verification (which will release funds if successful)
-    const response = await fetch('https://optic-gov.onrender.com/verify-milestone', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(request)
-    });
+    const response = await fetch(
+      "https://optic-gov.onrender.com/verify-milestone",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+      }
+    );
 
     if (!response.ok) {
       throw new Error(`Verification failed: HTTP ${response.status}`);
@@ -98,7 +142,7 @@ export async function verifyMilestoneWithBackend(request: AIAnalysisRequest): Pr
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error('Real-time verification failed:', error);
+    console.error("Real-time verification failed:", error);
     throw error;
   }
 }
