@@ -13,6 +13,7 @@ export interface AIAnalysisRequest {
   milestone_criteria: string;
   project_id: number;
   milestone_index: number;
+  on_chain_id?: string; // <--- FIX: Added field for SUI Object ID
 }
 
 export interface MilestoneGenerateRequest {
@@ -104,9 +105,17 @@ export async function verifyMilestoneWithBackend(
 
       const walletSigner = walletService.getSigner();
       if (walletSigner) {
+        // FIX: Use the actual SUI Object ID (on_chain_id) if available.
+        // Fallback to project_id.toString() only if necessary, but that usually fails for SUI calls.
+        const targetObjectId = request.on_chain_id || request.project_id.toString();
+
+        if (!request.on_chain_id) {
+            console.warn("⚠️ Warning: No on_chain_id provided. Using database ID, which may fail on-chain.");
+        }
+
         await suiService.submitMilestone(
           walletSigner,
-          request.project_id.toString(),
+          targetObjectId, 
           {
             evidence_url: request.video_url,
           }

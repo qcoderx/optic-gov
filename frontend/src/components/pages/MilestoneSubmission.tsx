@@ -71,7 +71,7 @@ export const MilestoneSubmission = () => {
       setIsLoading(false);
     }
   };
-// ... rest of the file remains the same ...
+
   const uploadToBackend = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('video', file);
@@ -149,11 +149,13 @@ export const MilestoneSubmission = () => {
       
       const { verifyMilestoneWithBackend } = await import('@/services/aiService');
       
+      // FIX: Pass the on_chain_id here so the service can submit evidence to the blockchain
       const result = await verifyMilestoneWithBackend({
         video_url: videoUrl,
         milestone_criteria: milestone?.criteria || "Structural verification",
         project_id: projectId,
-        milestone_index: currentMilestoneId
+        milestone_index: currentMilestoneId,
+        on_chain_id: project?.on_chain_id // <--- CRITICAL FIX: SUI Object ID
       });
       
       console.log('✅ Real verification result:', result);
