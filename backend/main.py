@@ -544,6 +544,18 @@ async def update_project(project_id: int, project_update: ProjectUpdate, db: Ses
     db.refresh(project)
     return project
 
+@app.put("/projects/{project_id}/on-chain-id")
+async def update_project_on_chain_id(project_id: int, on_chain_id: str, db: Session = Depends(get_db)):
+    """Update only the on_chain_id field"""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    project.on_chain_id = on_chain_id
+    db.commit()
+    print(f"✅ Updated project {project_id} with on_chain_id: {on_chain_id}")
+    return {"success": True, "on_chain_id": on_chain_id}
+
 @app.delete("/projects/{project_id}")
 async def delete_project(project_id: int, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()

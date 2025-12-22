@@ -103,11 +103,16 @@ class ProjectService {
         console.log('🔗 SUI Project Created - Object ID:', objectId);
 
         // Save the on-chain ID back to the database
-        await fetch(`${API_BASE_URL}/projects/${result.project_id}`, {
+        const updateResponse = await fetch(`${API_BASE_URL}/projects/${result.project_id}/on-chain-id?on_chain_id=${objectId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ on_chain_id: objectId }),
         });
+        
+        if (!updateResponse.ok) {
+          console.error('Failed to update on_chain_id in database');
+        } else {
+          console.log('✅ on_chain_id saved to database');
+        }
         
         result.on_chain_id = objectId;
       } catch (suiError) {
