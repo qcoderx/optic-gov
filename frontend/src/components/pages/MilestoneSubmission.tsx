@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { TransactionNotification } from '@/components/ui/TransactionNotification';
 import { useSuiWallet } from '@/hooks/useSuiWallet';
 import { ConnectButton } from '@mysten/dapp-kit';
 import { walletService } from '@/services/walletService';
@@ -24,6 +25,13 @@ export const MilestoneSubmission = () => {
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    type: 'success' | 'error';
+    title: string;
+    message: string;
+    txHash?: string;
+  }>({ show: false, type: 'success', title: '', message: '' });
 
   useEffect(() => {
     if (signAndExecute && address) {

@@ -6,6 +6,8 @@ export interface VerificationResult {
   detected_elements: string[];
   compliance_score: number;
   timestamp: string;
+  sui_transaction?: string;
+  ethereum_transaction?: string;
 }
 
 export interface AIAnalysisRequest {
