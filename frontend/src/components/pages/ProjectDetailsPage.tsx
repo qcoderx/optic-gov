@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Icon } from '@/components/ui/Icon';
+import { projectService } from '@/services/projectService';
+import type { Project } from '@/types/project';
 
 interface Milestone {
   id: string;
@@ -18,48 +20,114 @@ export const ProjectDetailsPage = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const [selectedEvidence, setSelectedEvidence] = useState<string | null>(null);
+  const [project, setProject] = useState<Project | null>(null);
+  const [contractor, setContractor] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Get project data from URL params or localStorage
-  const projectData = JSON.parse(localStorage.getItem('selectedProject') || '{}');
+  useEffect(() => {
+    const loadProject = async () => {
+      if (!projectId) return;
+      try {
+        const projectData = await projectService.getProject(parseInt(projectId));
+        setProject(projectData);
+        
+        // Load contractor data
+        if (projectData.contractor_id) {
+          const contractorResponse = await fetch(`https://optic-gov.onrender.com/contractors/${projectData.contractor_id}`);
+          if (contractorResponse.ok) {
+            const contractorData = await contractorResponse.json();
+            setContractor(contractorData);
+          }
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load project');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProject();
+  }, [projectId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#122017] text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#38e07b] mx-auto mb-4"></div>
+          <p>Loading project details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !project) {
+    return (
+      <div className="min-h-screen bg-[#122017] text-white flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <p className="text-red-400 mb-4">{error || 'Project not found'}</p>
+          <p className="text-gray-400 mb-6 text-sm">
+            {error?.includes('404') ? 
+              'This project does not exist in the database. You may need to create some test data first.' :
+              'There was an error loading the project data.'}
+          </p>
+          <div className="flex gap-4 justify-center">
+            <button 
+              onClick={() => navigate('/transparency-map')}
+              className="bg-[#38e07b] text-[#122017] px-4 py-2 rounded font-bold"
+            >
+              Back to Map
+            </button>
+            <button 
+              onClick={async () => {
+                try {
+                  const response = await fetch('https://optic-gov.onrender.com/create-test-data', {
+                    method: 'POST'
+                  });
+                  if (response.ok) {
+                    const result = await response.json();
+                    navigate(`/project/${result.project_id}`);
+                  }
+                } catch (err) {
+                  console.error('Failed to create test data:', err);
+                }
+              }}
+              className="bg-blue-600 text-white px-4 py-2 rounded font-bold"
+            >
+              Create Test Data
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
-  const milestones: Milestone[] = [
-    {
-      id: '1',
-      title: 'Site Survey & Planning',
-      status: 'completed',
-      date: 'Oct 12, 2024',
-      description: 'Initial site assessment and project planning completed',
-      evidence: {
-        image: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=300&fit=crop',
-        analysis: 'Geolocation verified. Site dimensions match project specifications. No environmental hazards detected.'
-      }
-    },
-    {
-      id: '2',
-      title: 'Foundation & Infrastructure',
-      status: 'completed',
-      date: 'Oct 28, 2024',
-      description: 'Foundation work and basic infrastructure setup',
-      evidence: {
-        image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=300&fit=crop',
-        analysis: 'Foundation depth verified at 2.5m. Concrete quality meets Nigerian Building Code standards.'
-      }
-    },
-    {
-      id: '3',
-      title: 'Main Construction Phase',
-      status: 'in-progress',
-      date: 'Nov 15, 2024',
-      description: 'Primary construction work in progress',
-    },
-    {
-      id: '4',
-      title: 'Final Inspection & Handover',
-      status: 'locked',
-      date: 'Dec 20, 2024',
-      description: 'Final quality checks and project completion',
-    }
-  ];
+  // Use real milestones from backend
+  const milestones = (project.milestones || []).map((m: any) => ({
+    id: m.id.toString(),
+    title: m.description,
+    status: m.status === 'completed' ? 'completed' : 
+            m.status === 'pending' ? 'in-progress' : 'locked',
+    date: new Date(m.created_at || Date.now()).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric', 
+      year: 'numeric'
+    }),
+    description: m.description,
+    evidence: m.status === 'completed' ? {
+      image: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=300&fit=crop',
+      analysis: `Milestone verified. ${m.description} completed successfully.`
+    } : undefined
+  }));
+
+  // Calculate progress
+  const completedMilestones = milestones.filter(m => m.status === 'completed').length;
+  const totalMilestones = milestones.length || 1;
+  const progressPercentage = Math.round((completedMilestones / totalMilestones) * 100);
+  
+  // Calculate SUI amounts
+  const totalSUI = project.total_budget_sui || project.budget || 0;
+  const releasedSUI = (totalSUI * progressPercentage) / 100;
+  const lockedSUI = totalSUI - releasedSUI;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -116,7 +184,7 @@ export const ProjectDetailsPage = () => {
             <Icon name="public" /> Public Map
           </button>
           <span className="text-[#9cbaa6] text-sm font-medium">/</span>
-          <span className="text-white text-sm font-medium">{projectData.name || 'Project Details'}</span>
+          <span className="text-white text-sm font-medium">{project.name || 'Project Details'}</span>
         </div>
 
         {/* Page Heading */}
@@ -124,7 +192,7 @@ export const ProjectDetailsPage = () => {
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <h1 className="text-white text-3xl md:text-4xl font-black leading-tight tracking-[-0.033em]">
-                {projectData.name || 'Infrastructure Project'}
+                {project.name || 'Infrastructure Project'}
               </h1>
               <span className="hidden md:flex items-center gap-1 bg-[#38e07b]/10 text-[#38e07b] px-2 py-1 rounded text-xs font-bold uppercase tracking-wider border border-[#38e07b]/20">
                 <Icon name="verified_user" size="sm" /> Verified
@@ -132,11 +200,11 @@ export const ProjectDetailsPage = () => {
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[#9cbaa6] text-sm md:text-base">
               <span className="flex items-center gap-1">
-                <Icon name="fingerprint" size="sm" /> Project ID: {projectId || '0x71C...9A2'}
+                <Icon name="fingerprint" size="sm" /> Project ID: {project.id}
               </span>
               <span className="hidden md:inline">•</span>
               <span className="flex items-center gap-1">
-                <Icon name="location_on" size="sm" /> {projectData.location || 'Nigeria'}
+                <Icon name="location_on" size="sm" /> {project.location || 'Nigeria'}
               </span>
               <span className="hidden md:inline">•</span>
               <span className="flex items-center gap-1 text-[#38e07b]">
@@ -157,28 +225,28 @@ export const ProjectDetailsPage = () => {
               <p className="text-[#9cbaa6] text-sm font-medium uppercase tracking-wider">Total Budget</p>
               <Icon name="account_balance_wallet" className="text-[#9cbaa6]" />
             </div>
-            <p className="text-white text-2xl font-bold">{projectData.budget || '$2,500,000'}</p>
+            <p className="text-white text-2xl font-bold">₦{project.total_budget_ngn?.toLocaleString() || '0'}</p>
           </div>
           <div className="flex flex-col gap-2 rounded-xl p-6 bg-[#1c2620] border border-[#29382f]">
             <div className="flex items-center justify-between">
               <p className="text-[#9cbaa6] text-sm font-medium uppercase tracking-wider">SUI Locked</p>
               <Icon name="lock" className="text-[#9cbaa6]" />
             </div>
-            <p className="text-white text-2xl font-bold">150 SUI</p>
+            <p className="text-white text-2xl font-bold">{totalSUI.toFixed(2)} SUI</p>
           </div>
           <div className="flex flex-col gap-2 rounded-xl p-6 bg-[#1c2620] border border-[#29382f]">
             <div className="flex items-center justify-between">
               <p className="text-[#9cbaa6] text-sm font-medium uppercase tracking-wider">SUI Released</p>
               <Icon name="lock_open" className="text-[#38e07b]" />
             </div>
-            <p className="text-[#38e07b] text-2xl font-bold">45 SUI</p>
+            <p className="text-[#38e07b] text-2xl font-bold">{releasedSUI.toFixed(2)} SUI</p>
           </div>
           <div className="flex flex-col gap-2 rounded-xl p-6 bg-[#1c2620] border border-[#29382f]">
             <div className="flex items-center justify-between">
               <p className="text-[#9cbaa6] text-sm font-medium uppercase tracking-wider">Next Release</p>
               <Icon name="schedule" className="text-[#9cbaa6]" />
             </div>
-            <p className="text-white text-2xl font-bold">Nov 24, 2024</p>
+            <p className="text-white text-2xl font-bold">{new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
           </div>
         </div>
 
@@ -287,10 +355,10 @@ export const ProjectDetailsPage = () => {
               <div className="flex flex-col gap-3">
                 <div className="flex gap-6 justify-between items-end">
                   <p className="text-[#9cbaa6] text-sm font-medium">Smart Contract Auto-Release</p>
-                  <p className="text-white text-xl font-bold">30%</p>
+                  <p className="text-white text-xl font-bold">{progressPercentage}%</p>
                 </div>
                 <div className="rounded-full h-3 bg-[#0f1511] border border-[#29382f] overflow-hidden">
-                  <div className="h-full rounded-full bg-[#38e07b] relative overflow-hidden" style={{ width: '30%' }}>
+                  <div className="h-full rounded-full bg-[#38e07b] relative overflow-hidden" style={{ width: `${progressPercentage}%` }}>
                     <div className="absolute inset-0 bg-white/20 w-full h-full animate-pulse" />
                   </div>
                 </div>
@@ -306,17 +374,15 @@ export const ProjectDetailsPage = () => {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#9cbaa6]">Address</span>
-                  <span className="text-white font-medium text-right">{projectData.formattedAddress || projectData.location || 'Nigeria'}</span>
+                  <span className="text-white font-medium text-right">{project.location || 'Nigeria'}</span>
                 </div>
-                {projectData.place && (
-                  <>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-[#9cbaa6]">Coordinates</span>
-                      <span className="text-[#38e07b] font-mono text-xs">
-                        {projectData.place.location.latitude.toFixed(4)}, {projectData.place.location.longitude.toFixed(4)}
-                      </span>
-                    </div>
-                  </>
+                {project.coordinates && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-[#9cbaa6]">Coordinates</span>
+                    <span className="text-[#38e07b] font-mono text-xs">
+                      {project.coordinates.lat.toFixed(4)}, {project.coordinates.lng.toFixed(4)}
+                    </span>
+                  </div>
                 )}
                 <div className="flex justify-between text-sm">
                   <span className="text-[#9cbaa6]">Status</span>
@@ -330,24 +396,24 @@ export const ProjectDetailsPage = () => {
               <h3 className="text-white font-bold text-lg mb-4">Contractor Profile</h3>
               <div className="flex items-center gap-3 mb-4">
                 <div className="size-12 rounded-full bg-white/5 flex items-center justify-center text-white border border-white/10">
-                  <span className="font-bold text-lg">NI</span>
+                  <span className="font-bold text-lg">{contractor?.company_name?.substring(0, 2).toUpperCase() || 'CO'}</span>
                 </div>
                 <div>
-                  <p className="text-white font-bold">Nigerian Infrastructure Ltd</p>
+                  <p className="text-white font-bold">{contractor?.company_name || 'Loading...'}</p>
                   <div className="flex items-center gap-1 text-xs text-[#38e07b]">
                     <Icon name="verified" size="sm" />
-                    <span>Level 4 Vetted</span>
+                    <span>Level {Math.min(Math.floor((contractor?.trust_score || 85) / 20), 5)} Vetted</span>
                   </div>
                 </div>
               </div>
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#9cbaa6]">Projects Completed</span>
-                  <span className="text-white font-medium">8</span>
+                  <span className="text-white font-medium">{contractor?.projects_completed || 0}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-[#9cbaa6]">Trust Score</span>
-                  <span className="text-[#38e07b] font-bold">95/100</span>
+                  <span className="text-[#38e07b] font-bold">{contractor?.trust_score || 85}/100</span>
                 </div>
               </div>
             </div>

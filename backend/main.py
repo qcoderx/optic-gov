@@ -275,6 +275,63 @@ async def login_contractor(login: ContractorLogin, db: Session = Depends(get_db)
     access_token = create_access_token(data={"sub": contractor.wallet_address})
     return {"access_token": access_token, "token_type": "bearer"}
 
+@app.post("/create-test-data")
+async def create_test_data(db: Session = Depends(get_db)):
+    """Create test data for development"""
+    try:
+        # Create test contractor
+        test_contractor = Contractor(
+            wallet_address="0x1234567890abcdef",
+            company_name="Nigerian Infrastructure Ltd",
+            email="test@example.com",
+            password_hash=hash_password("password123")
+        )
+        db.add(test_contractor)
+        db.commit()
+        db.refresh(test_contractor)
+        
+        # Create test project
+        test_project = Project(
+            name="Lagos-Ibadan Highway Expansion",
+            description="Major highway infrastructure project connecting Lagos and Ibadan",
+            total_budget=0.5,  # 0.5 ETH
+            contractor_id=test_contractor.id,
+            ai_generated=True,
+            project_latitude=6.5244,
+            project_longitude=3.3792,
+            location_tolerance_km=1.0,
+            gov_wallet="0xgov123",
+            on_chain_id="0xproject123"
+        )
+        db.add(test_project)
+        db.commit()
+        db.refresh(test_project)
+        
+        # Create test milestones
+        milestones = [
+            {"description": "Site Survey and Planning", "status": "completed"},
+            {"description": "Foundation and Infrastructure", "status": "completed"},
+            {"description": "Main Construction Phase", "status": "pending"},
+            {"description": "Final Inspection and Handover", "status": "pending"}
+        ]
+        
+        milestone_amount = test_project.total_budget / len(milestones)
+        for i, milestone_data in enumerate(milestones):
+            milestone = Milestone(
+                project_id=test_project.id,
+                description=milestone_data["description"],
+                amount=milestone_amount,
+                order_index=i + 1,
+                status=milestone_data["status"]
+            )
+            db.add(milestone)
+        
+        db.commit()
+        return {"message": "Test data created", "project_id": test_project.id, "contractor_id": test_contractor.id}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create test data: {str(e)}")
+
 @app.post("/convert-currency")
 async def convert_currency(request: ConvertRequest):
     """Convert between NGN and ETH"""
@@ -424,43 +481,53 @@ async def get_all_projects(db: Session = Depends(get_db)):
 
 @app.get("/projects/{project_id}")
 async def get_project(project_id: int, db: Session = Depends(get_db)):
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    
-    # Retrieve milestones
-    milestones = db.query(Milestone).filter(Milestone.project_id == project_id).order_by(Milestone.order_index).all()
-    milestone_list = []
-    for m in milestones:
-        milestone_list.append({
-            "id": m.id,
-            "description": m.description,
-            "amount": m.amount,
-            "status": m.status,
-            "order_index": m.order_index,
-            # Generate a simple criteria string if missing
-            "criteria": f"Verify completion of: {m.description}" 
-        })
-    
-    # Add currency conversion for frontend display
-    project_dict = {
-        "id": project.id,
-        "name": project.name,
-        "description": project.description,
-        "total_budget_eth": project.total_budget,
-        "total_budget_ngn": convert_eth_to_ngn(project.total_budget),
-        "contractor_id": project.contractor_id,
-        "ai_generated": project.ai_generated,
-        "project_latitude": project.project_latitude,
-        "project_longitude": project.project_longitude,
-        "location_tolerance_km": project.location_tolerance_km,
-        "gov_wallet": project.gov_wallet,
-        "on_chain_id": project.on_chain_id,
-        "created_at": project.created_at,
-        "exchange_rate": get_eth_ngn_rate(),
-        "milestones": milestone_list  # Added Milestones here
-    }
-    return project_dict
+    try:
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        # Retrieve milestones
+        milestones = db.query(Milestone).filter(Milestone.project_id == project_id).order_by(Milestone.order_index).all()
+        milestone_list = []
+        for m in milestones:
+            milestone_list.append({
+                "id": m.id,
+                "description": m.description,
+                "amount": m.amount,
+                "status": m.status,
+                "order_index": m.order_index,
+                "criteria": f"Verify completion of: {m.description}",
+                "created_at": m.created_at.isoformat() if m.created_at else None
+            })
+        
+        # Add currency conversion for frontend display
+        project_dict = {
+            "id": project.id,
+            "name": project.name,
+            "description": project.description,
+            "total_budget_eth": project.total_budget,
+            "total_budget_ngn": convert_eth_to_ngn(project.total_budget),
+            "total_budget_sui": project.total_budget,  # For SUI display
+            "contractor_id": project.contractor_id,
+            "ai_generated": project.ai_generated,
+            "project_latitude": project.project_latitude,
+            "project_longitude": project.project_longitude,
+            "location_tolerance_km": project.location_tolerance_km,
+            "gov_wallet": project.gov_wallet,
+            "on_chain_id": project.on_chain_id,
+            "created_at": project.created_at.isoformat() if project.created_at else None,
+            "exchange_rate": get_eth_ngn_rate(),
+            "milestones": milestone_list,
+            "location": f"Lat: {project.project_latitude}, Lng: {project.project_longitude}" if project.project_latitude and project.project_longitude else "Nigeria",
+            "coordinates": {
+                "lat": project.project_latitude,
+                "lng": project.project_longitude
+            } if project.project_latitude and project.project_longitude else None
+        }
+        return project_dict
+    except Exception as e:
+        print(f"Error in get_project: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/milestones/{milestone_id}/project")
 async def get_project_by_milestone(milestone_id: int, db: Session = Depends(get_db)):
@@ -731,6 +798,27 @@ async def convert_eth_to_ngn_endpoint(eth_amount: float):
         "exchange_rate": rate,
         "formatted_eth": f"{eth_amount:.6f} ETH",
         "formatted_naira": f"₦{naira_amount:,.2f}"
+    }
+
+@app.get("/contractors/{contractor_id}")
+async def get_contractor(contractor_id: int, db: Session = Depends(get_db)):
+    """Get contractor details"""
+    contractor = db.query(Contractor).filter(Contractor.id == contractor_id).first()
+    if not contractor:
+        raise HTTPException(status_code=404, detail="Contractor not found")
+    
+    # Count completed projects
+    completed_projects = db.query(Project).filter(Project.contractor_id == contractor_id).count()
+    
+    return {
+        "id": contractor.id,
+        "company_name": contractor.company_name,
+        "wallet_address": contractor.wallet_address,
+        "email": contractor.email,
+        "is_active": contractor.is_active,
+        "created_at": contractor.created_at,
+        "projects_completed": completed_projects,
+        "trust_score": min(85 + (completed_projects * 2), 100)  # Simple trust score calculation
     }
 
 @app.get("/milestones/{milestone_id}")
