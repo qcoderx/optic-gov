@@ -43,11 +43,29 @@ export const useLogin = () => {
     
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const response = await fetch('https://optic-gov.onrender.com/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Login failed');
+      }
+      
+      const result = await response.json();
+      localStorage.setItem('access_token', result.access_token);
+      localStorage.setItem('contractor_id', result.contractor_id);
+      localStorage.setItem('wallet_address', result.wallet_address);
+      
+      window.location.href = '/contractor';
       return true;
     } catch (error) {
-      setErrors({ general: 'Invalid email or password' });
+      setErrors({ general: error instanceof Error ? error.message : 'Invalid email or password' });
       return false;
     } finally {
       setIsLoading(false);
@@ -57,11 +75,18 @@ export const useLogin = () => {
   const connectWallet = async () => {
     setIsLoading(true);
     try {
-      // Simulate wallet connection
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const { useSuiWallet } = await import('@/hooks/useSuiWallet');
+      const { address } = useSuiWallet();
+      
+      if (!address) {
+        throw new Error('Please connect your wallet first');
+      }
+      
+      localStorage.setItem('wallet_address', address);
+      window.location.href = '/contractor';
       return true;
     } catch (error) {
-      setErrors({ general: 'Failed to connect wallet' });
+      setErrors({ general: error instanceof Error ? error.message : 'Failed to connect wallet' });
       return false;
     } finally {
       setIsLoading(false);
