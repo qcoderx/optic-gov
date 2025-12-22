@@ -73,14 +73,21 @@ export const TransactionNotification = ({
               )}
 
               <button
-                onClick={onClose}
+                onClick={() => {
+                  onClose();
+                  if (type === 'success') {
+                    setTimeout(() => {
+                      window.location.href = '/contractor';
+                    }, 300);
+                  }
+                }}
                 className={`w-full font-bold py-3 rounded-lg transition-colors ${
                   type === 'success'
                     ? 'bg-[#0df20d] hover:bg-[#0be00b] text-black'
                     : 'bg-red-500 hover:bg-red-600 text-white'
                 }`}
               >
-                {type === 'success' ? 'Continue' : 'Close'}
+                {type === 'success' ? 'Continue to Dashboard' : 'Close'}
               </button>
             </div>
           </motion.div>

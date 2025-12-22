@@ -85,9 +85,7 @@ export const MilestoneVerificationPage = () => {
         txHash: result.sui_transaction
       });
       
-      setTimeout(() => {
-        window.location.href = '/contractor';
-      }, 3000);
+      // Don't auto-redirect, let user close notification manually
     } catch (err) {
       setNotification({
         show: true,
