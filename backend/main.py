@@ -142,25 +142,29 @@ async def release_funds_sui(project_object_id: str, amount_mist: int):
         return None
     
     try:
+        # 1. Create the Transaction Builder
         txn = SyncTransaction(client=sui_client)
+        
         package_id = os.getenv("SUI_PACKAGE_ID")
         oracle_cap_id = os.getenv("SUI_ORACLE_CAP_ID")
         
-        if not package_id or not oracle_cap_id:
-            print("❌ Missing SUI_PACKAGE_ID or SUI_ORACLE_CAP_ID")
-            return None
+        # 2. Correctly wrap the arguments
+        # Argument 0: The OracleCap (MUST BE AN OBJECT)
+        # Argument 1: The Project (MUST BE AN OBJECT)
+        # Argument 2: The Amount (MUST BE PURE U64)
         
         txn.move_call(
             target=f"{package_id}::optic_gov::release_payment",
             arguments=[
-                oracle_cap_id,
-                project_object_id,
-                str(amount_mist)
+                txn.builder.obj(oracle_cap_id),      # Pass as Object Reference
+                txn.builder.obj(project_object_id),  # Pass as Object Reference
+                txn.builder.pure(amount_mist)        # Pass as Pure Value (u64)
             ],
             type_arguments=[]
         )
         
-        result = txn.execute(gas_budget="10000000")
+        # 3. Execute with enough gas
+        result = txn.execute(gas_budget="20000000") # Increased slightly for safety
         
         if result.is_ok():
             digest = result.result_data.digest
