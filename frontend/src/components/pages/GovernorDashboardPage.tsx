@@ -73,16 +73,17 @@ export const GovernorDashboardPage = () => {
         total_budget: budget,
         budget_currency: budgetCurrency,
         contractor_wallet: contractorAddress,
-        use_ai_milestones: useAiMilestones, // Use the state toggle
-        manual_milestones: useAiMilestones ? [] : validManualMilestones, // Send manual list if AI is off
+        use_ai_milestones: useAiMilestones,
+        manual_milestones: useAiMilestones ? [] : validManualMilestones,
         project_latitude: projectLocation.lat,
         project_longitude: projectLocation.lng,
         location_tolerance_km: 1.0,
         gov_wallet: "0x12...89",
-        on_chain_id: "0x" + Math.floor(Math.random() * 10000).toString(16),
+        on_chain_id: "",
       };
 
-      await projectService.createProject(projectData);
+      const result = await projectService.createProject(projectData);
+      console.log('🔗 Project Created - Backend Response:', result);
 
       // Reset form
       setProjectName("");

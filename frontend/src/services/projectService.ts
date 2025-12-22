@@ -86,29 +86,32 @@ class ProjectService {
         const walletSigner = walletService.getSigner();
         if (!walletSigner) {
           console.warn("No wallet connected for SUI creation");
-        } else {
-          const objectId = await suiService.createProject(walletSigner, {
-            name: project.name,
-            description: project.description,
-            budget: project.total_budget,
-            contractor: project.contractor_wallet,
-            location: {
-              lat: project.project_latitude,
-              lng: project.project_longitude,
-            },
-          });
-
-          console.log('🔗 SUI Project Created - Object ID:', objectId);
-
-          // Save the on-chain ID back to the database
-          await fetch(`${API_BASE_URL}/projects/${result.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ on_chain_id: objectId }),
-          });
+          return result;
         }
+        
+        const objectId = await suiService.createProject(walletSigner, {
+          name: project.name,
+          description: project.description,
+          budget: project.total_budget,
+          contractor: project.contractor_wallet,
+          location: {
+            lat: project.project_latitude,
+            lng: project.project_longitude,
+          },
+        });
+
+        console.log('🔗 SUI Project Created - Object ID:', objectId);
+
+        // Save the on-chain ID back to the database
+        await fetch(`${API_BASE_URL}/projects/${result.project_id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ on_chain_id: objectId }),
+        });
+        
+        result.on_chain_id = objectId;
       } catch (suiError) {
-        console.warn("SUI blockchain creation failed:", suiError);
+        console.error("SUI blockchain creation failed:", suiError);
       }
 
       return result;
