@@ -4,18 +4,6 @@ import { Icon } from '@/components/ui/Icon';
 import { projectService } from '@/services/projectService';
 import type { Project } from '@/types/project';
 
-interface Milestone {
-  id: string;
-  title: string;
-  status: 'completed' | 'in-progress' | 'locked';
-  date: string;
-  description: string;
-  evidence?: {
-    image: string;
-    analysis: string;
-  };
-}
-
 export const ProjectDetailsPage = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
@@ -127,7 +115,6 @@ export const ProjectDetailsPage = () => {
   // Calculate SUI amounts
   const totalSUI = project.total_budget_sui || project.budget || 0;
   const releasedSUI = (totalSUI * progressPercentage) / 100;
-  const lockedSUI = totalSUI - releasedSUI;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -287,13 +274,7 @@ export const ProjectDetailsPage = () => {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <h4 className="text-white font-bold text-lg">
-                          {milestone.id === '1' && projectData.name?.includes('Bridge') ? 'Bridge Foundation Survey' :
-                           milestone.id === '1' && projectData.name?.includes('Road') ? 'Road Planning & Survey' :
-                           milestone.id === '2' && projectData.name?.includes('Bridge') ? 'Bridge Pillar Construction' :
-                           milestone.id === '2' && projectData.name?.includes('Road') ? 'Road Base Preparation' :
-                           milestone.id === '3' && projectData.name?.includes('Bridge') ? 'Bridge Deck Installation' :
-                           milestone.id === '3' && projectData.name?.includes('Road') ? 'Road Surface Construction' :
-                           milestone.title}
+                          {milestone.title}
                         </h4>
                         <p className={`text-sm ${milestone.status === 'in-progress' ? 'text-yellow-500 font-medium' : 'text-[#9cbaa6]'}`}>
                           {milestone.status === 'in-progress' ? 'In Progress • Due ' : 'Completed on '}{milestone.date}
