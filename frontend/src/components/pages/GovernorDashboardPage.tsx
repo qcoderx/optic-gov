@@ -79,7 +79,8 @@ export const GovernorDashboardPage = () => {
         project_longitude: projectLocation.lng,
         location_tolerance_km: 1.0,
         gov_wallet: "0x12...89",
-        on_chain_id: "",
+        // Generate a demo on_chain_id for testing - will be replaced by actual SUI ID
+        on_chain_id: `demo_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`,
       };
 
       const result = await projectService.createProject(projectData);
