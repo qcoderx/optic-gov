@@ -3,10 +3,14 @@ import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
-import { projectService } from '@/services/projectService';
+import { TransactionNotification } from '@/components/ui/TransactionNotification';
+import { useSuiWallet } from '@/hooks/useSuiWallet';
+import { ConnectButton } from '@mysten/dapp-kit';
+import { walletService } from '@/services/walletService';
 
 export const MilestoneSubmission = () => {
   const { milestoneId } = useParams();
+  const { address, isConnected, signAndExecute } = useSuiWallet();
   const [project, setProject] = useState<any>(null);
   const [milestone, setMilestone] = useState<any>(null);
   const [comments, setComments] = useState('');
@@ -19,6 +23,22 @@ export const MilestoneSubmission = () => {
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [verificationResult, setVerificationResult] = useState<any>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    type: 'success' | 'error';
+    title: string;
+    message: string;
+    txHash?: string;
+  }>({ show: false, type: 'success', title: '', message: '' });
+
+  useEffect(() => {
+    if (signAndExecute && address) {
+      walletService.setSignAndExecute(signAndExecute);
+      localStorage.setItem('sui_wallet_address', address);
+    }
+  }, [signAndExecute, address]);
 
   useEffect(() => {
     loadProjectData();
@@ -72,7 +92,7 @@ export const MilestoneSubmission = () => {
       setIsLoading(false);
     }
   };
-// ... rest of the file remains the same ...
+
   const uploadToBackend = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('video', file);
@@ -150,19 +170,48 @@ export const MilestoneSubmission = () => {
       
       const { verifyMilestoneWithBackend } = await import('@/services/aiService');
       
+      // FIX: Pass the on_chain_id here so the service can submit evidence to the blockchain
       const result = await verifyMilestoneWithBackend({
         video_url: videoUrl,
         milestone_criteria: milestone?.criteria || "Structural verification",
         project_id: projectId,
-        milestone_index: currentMilestoneId
+        milestone_index: currentMilestoneId,
+        on_chain_id: project?.on_chain_id // <--- CRITICAL FIX: SUI Object ID
       });
       
       console.log('✅ Real verification result:', result);
+      
+      // Log transaction digest to console
+      if (result.sui_transaction) {
+        console.log('🔗 SUI Transaction Digest:', result.sui_transaction);
+      }
+      if (result.ethereum_transaction) {
+        console.log('🔗 Ethereum Transaction Hash:', result.ethereum_transaction);
+      }
+      
+      // Show success notification
+      setNotification({
+        show: true,
+        type: 'success',
+        title: '✅ Milestone Verified!',
+        message: `AI verification successful with ${(result.confidence * 100).toFixed(1)}% confidence. Funds released.`,
+        txHash: result.sui_transaction || result.ethereum_transaction
+      });
+      
       setVerificationResult(result);
       setShowModal(true);
       
     } catch (error) {
       console.error('Verification failed:', error);
+      
+      // Show error notification
+      setNotification({
+        show: true,
+        type: 'error',
+        title: '❌ Verification Failed',
+        message: error instanceof Error ? error.message : 'AI verification failed. Please check your submission.'
+      });
+      
       setVerificationResult({
         verified: false,
         confidence: 0,
@@ -171,6 +220,39 @@ export const MilestoneSubmission = () => {
         compliance_score: 0
       });
       setShowModal(true);
+    }
+  };
+
+  const startCameraRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      const chunks: Blob[] = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const file = new File([blob], `milestone-${Date.now()}.webm`, { type: 'video/webm' });
+        setVideoFile(file);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      setMediaRecorder(recorder);
+      recorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Camera access denied:', err);
+      alert('Camera access required for video verification');
+    }
+  };
+
+  const stopCameraRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      setIsRecording(false);
     }
   };
 
@@ -249,12 +331,17 @@ export const MilestoneSubmission = () => {
             />
             Mainnet Live
           </motion.div>
-          <motion.button 
-            className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-[#283928] border border-[#0df20d]/20 hover:border-[#0df20d]/50 transition-colors text-white text-sm font-bold leading-normal tracking-[0.015em]"
-            whileHover={{ scale: 1.05 }}
-          >
-            <span className="truncate font-mono">Connected: 0x12...89</span>
-          </motion.button>
+          {isConnected && address ? (
+            <div className="flex items-center gap-2 bg-[#0df20d]/10 border border-[#0df20d]/30 rounded px-3 py-2">
+              <Icon name="account_balance_wallet" size="sm" className="text-[#0df20d]" />
+              <span className="text-white text-sm font-mono">{`${address.slice(0, 6)}...${address.slice(-4)}`}</span>
+            </div>
+          ) : (
+            <ConnectButton 
+              connectText="Connect Wallet"
+              className="bg-[#283928] border border-[#0df20d]/20 hover:border-[#0df20d]/50 transition-colors text-white text-sm font-bold px-4 py-2 rounded"
+            />
+          )}
         </div>
       </motion.header>
 
@@ -378,38 +465,57 @@ export const MilestoneSubmission = () => {
                 </div>
                 
                 {/* Dropzone / Camera View */}
-                <motion.div 
-                  className="relative w-full aspect-video bg-[#0a0a0a] border-2 border-dashed border-[#283928] hover:border-[#0df20d] hover:bg-[#162016] rounded-lg transition-all duration-300 flex flex-col items-center justify-center cursor-pointer group overflow-hidden"
-                  whileHover={{ scale: 1.02 }}
-                  onClick={() => document.getElementById('video-upload')?.click()}
-                >
-                  <input
-                    id="video-upload"
-                    type="file"
-                    accept="video/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0iIzBkZjIwZCIgZmlsbC1vcGFjaXR5PSIwLjEiLz4KPC9zdmc+')] opacity-20 pointer-events-none" />
-                  
-                  {/* Content inside dropzone */}
-                  <div className="flex flex-col items-center gap-4 z-10 p-6 text-center group-hover:scale-105 transition-transform duration-300">
-                    <motion.div 
-                      className="size-16 rounded-full bg-[#1c291c] flex items-center justify-center border border-[#0df20d]/30 group-hover:border-[#0df20d] group-hover:shadow-[0_0_15px_rgba(13,242,13,0.3)] transition-all"
-                      animate={{ 
-                        boxShadow: ['0 0 0 rgba(13,242,13,0)', '0 0 15px rgba(13,242,13,0.3)', '0 0 0 rgba(13,242,13,0)']
-                      }}
-                      transition={{ duration: 3, repeat: Infinity }}
-                    >
-                      <Icon name="upload_file" className="text-3xl text-[#0df20d]" />
-                    </motion.div>
-                    <div>
-                      <p className="text-white font-bold text-lg">{videoFile ? videoFile.name : 'Upload Video'}</p>
-                      <p className="text-[#9cba9c] text-sm mt-1">{videoFile ? 'Click to change file' : 'or drag and drop here'}</p>
+                <div className="space-y-3">
+                  {/* Camera Record Button */}
+                  <motion.button
+                    className={`w-full h-14 text-base font-bold uppercase tracking-wider rounded transition-all flex items-center justify-center gap-2 ${
+                      isRecording
+                        ? 'bg-red-600 hover:bg-red-700 text-white animate-pulse'
+                        : 'bg-[#0df20d] hover:bg-[#0be00b] text-[#0a0a0a]'
+                    }`}
+                    onClick={isRecording ? stopCameraRecording : startCameraRecording}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Icon name={isRecording ? 'stop' : 'videocam'} />
+                    {isRecording ? 'Stop Recording' : 'Record with Camera'}
+                  </motion.button>
+
+                  <div className="text-center text-gray-500 text-xs uppercase tracking-wider">OR</div>
+
+                  {/* File Upload */}
+                  <motion.div 
+                    className="relative w-full aspect-video bg-[#0a0a0a] border-2 border-dashed border-[#283928] hover:border-[#0df20d] hover:bg-[#162016] rounded-lg transition-all duration-300 flex flex-col items-center justify-center cursor-pointer group overflow-hidden"
+                    whileHover={{ scale: 1.02 }}
+                    onClick={() => document.getElementById('video-upload')?.click()}
+                  >
+                    <input
+                      id="video-upload"
+                      type="file"
+                      accept="video/*"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0iIzBkZjIwZCIgZmlsbC1vcGFjaXR5PSIwLjEiLz4KPC9zdmc+')] opacity-20 pointer-events-none" />
+                    
+                    <div className="flex flex-col items-center gap-4 z-10 p-6 text-center group-hover:scale-105 transition-transform duration-300">
+                      <motion.div 
+                        className="size-16 rounded-full bg-[#1c291c] flex items-center justify-center border border-[#0df20d]/30 group-hover:border-[#0df20d] group-hover:shadow-[0_0_15px_rgba(13,242,13,0.3)] transition-all"
+                        animate={{ 
+                          boxShadow: ['0 0 0 rgba(13,242,13,0)', '0 0 15px rgba(13,242,13,0.3)', '0 0 0 rgba(13,242,13,0)']
+                        }}
+                        transition={{ duration: 3, repeat: Infinity }}
+                      >
+                        <Icon name="upload_file" className="text-3xl text-[#0df20d]" />
+                      </motion.div>
+                      <div>
+                        <p className="text-white font-bold text-lg">{videoFile ? videoFile.name : 'Upload Video File'}</p>
+                        <p className="text-[#9cba9c] text-sm mt-1">{videoFile ? 'Click to change file' : 'or drag and drop here'}</p>
+                      </div>
+                      <p className="text-xs text-gray-500 font-mono">MP4, MOV, WEBM up to 500MB</p>
                     </div>
-                    <p className="text-xs text-gray-500 font-mono">MP4, MOV up to 500MB</p>
-                  </div>
-                </motion.div>
+                  </motion.div>
+                </div>
 
                 <motion.button 
                   className={`w-full h-14 text-base font-bold uppercase tracking-wider rounded transition-all flex items-center justify-center gap-2 group ${
@@ -497,6 +603,17 @@ export const MilestoneSubmission = () => {
           </div>
         </div>
       </main>
+
+      {/* Transaction Notification */}
+      <TransactionNotification
+        show={notification.show}
+        type={notification.type}
+        title={notification.title}
+        message={notification.message}
+        txHash={notification.txHash}
+        explorerUrl={notification.txHash ? `https://suiexplorer.com/txblock/${notification.txHash}?network=testnet` : undefined}
+        onClose={() => setNotification({ ...notification, show: false })}
+      />
 
       {/* Verification Modal */}
       {showModal && verificationResult && (

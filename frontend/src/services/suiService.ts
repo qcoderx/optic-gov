@@ -73,6 +73,8 @@ export class SuiService {
         }
       });
 
+      console.log('🔗 SUI Transaction Digest (createProject):', result.digest);
+
       const createdObject = result.objectChanges?.find(
         (change: any) => change.type === 'created' && change.objectType.includes('::optic_gov::Project')
       );
@@ -109,6 +111,8 @@ export class SuiService {
           showObjectChanges: true
         }
       });
+
+      console.log('🔗 SUI Transaction Digest (submitMilestone):', result.digest);
 
       return result.digest;
     } catch (error) {

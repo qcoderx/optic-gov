@@ -1,3 +1,5 @@
+// frontend/src/components/ui/CurrencyInput.tsx
+
 import React, { useState, useEffect } from 'react';
 import { currencyService } from '../../services/currencyService';
 
@@ -31,10 +33,12 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
       setLoading(true);
       try {
         if (currency === 'NGN') {
-          const eth = await currencyService.quickConvertNgnToEth(value);
-          setConvertedValue(eth);
+          // Convert NGN -> SUI
+          const sui = await currencyService.quickConvertNgnToSui(value);
+          setConvertedValue(sui);
         } else {
-          const ngn = await currencyService.quickConvertEthToNgn(value);
+          // Convert SUI -> NGN
+          const ngn = await currencyService.quickConvertSuiToNgn(value);
           setConvertedValue(ngn);
         }
       } catch (error) {
@@ -53,7 +57,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
     const newCurrency = currency === 'NGN' ? 'SUI' : 'NGN';
     onCurrencyChange(newCurrency);
     
-    // Convert current value to new currency
+    // If we have a converted value, switch the input to that value for smooth UX
     if (convertedValue && convertedValue > 0) {
       onChange(convertedValue, newCurrency);
     }
@@ -82,12 +86,12 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
           {currency}
         </button>
       </div>
-      {convertedValue && !loading && (
+      {convertedValue !== null && !loading && (
         <div className="mt-2 text-sm text-[#9eb7a8] flex items-center gap-2">
           <span>≈</span>
           <span>
             {currency === 'NGN' 
-              ? currencyService.formatEth(convertedValue)
+              ? currencyService.formatSui(convertedValue)
               : currencyService.formatNaira(convertedValue)
             }
           </span>

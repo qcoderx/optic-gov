@@ -3,15 +3,24 @@ import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
-import { projectService } from '@/services/projectService';
-import { verifyMilestoneWithBackend } from '@/services/aiService';
+import { TransactionNotification } from '@/components/ui/TransactionNotification';
+import { useSuiWallet } from '@/hooks/useSuiWallet';
+import { ConnectButton } from '@mysten/dapp-kit';
 
 export const MilestoneVerificationPage = () => {
   const { milestoneId } = useParams();
+  const { address, isConnected } = useSuiWallet();
   const [isVerifying, setIsVerifying] = useState(false);
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    type: 'success' | 'error';
+    title: string;
+    message: string;
+    txHash?: string;
+  }>({ show: false, type: 'success', title: '', message: '' });
 
   useEffect(() => {
     loadProjectData();
@@ -37,29 +46,80 @@ export const MilestoneVerificationPage = () => {
     }
   };
 
-  const handleVerifyMilestone = async () => {
+  const handleDemoBypass = async () => {
     if (!project) return;
     
     setIsVerifying(true);
     try {
-      // Call real backend verification
-      await verifyMilestoneWithBackend({
-        video_url: 'pending_upload',
-        milestone_criteria: 'Foundation and structural work',
-        project_id: project.id,
-        milestone_index: 1
+      // If no on_chain_id, the backend will auto-generate one
+      const response = await fetch('https://optic-gov.onrender.com/demo-approve-milestone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: project.id,
+          milestone_id: 45, // Use the milestone we created
+          bypass: true
+        })
       });
       
-      // Navigate to milestone submission page
-      window.location.href = `/contractor/milestone/${milestoneId}`;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Demo approval failed');
+      }
+      
+      const result = await response.json();
+      
+      console.log('🔗 Full Response:', result);
+      console.log('🔗 Transaction Digest:', result.sui_transaction);
+      
+      setNotification({
+        show: true,
+        type: 'success',
+        title: '✅ Demo Approval Successful!',
+        message: `Milestone approved and funds released. Transaction: ${result.sui_transaction || 'Pending'}`,
+        txHash: result.sui_transaction
+      });
+      
+      setTimeout(() => {
+        window.location.href = '/contractor';
+      }, 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Verification failed');
+      setNotification({
+        show: true,
+        type: 'error',
+        title: '❌ Demo Approval Failed',
+        message: err instanceof Error ? err.message : 'Failed to approve milestone. Please try again.'
+      });
       setIsVerifying(false);
     }
   };
 
-  if (loading) return <div className="bg-[#0a0a0a] text-white min-h-screen flex items-center justify-center">Loading...</div>;
-  if (error) return <div className="bg-[#0a0a0a] text-white min-h-screen flex items-center justify-center">Error: {error}</div>;
+  const handleVerifyMilestone = async () => {
+    window.location.href = `/contractor/milestone/1`; // Use first milestone for demo
+  };
+
+  if (loading) return (
+    <div className="bg-[#0a0a0a] text-white min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0df20d] mx-auto mb-4"></div>
+        <p>Loading project data...</p>
+      </div>
+    </div>
+  );
+  
+  if (error) return (
+    <div className="bg-[#0a0a0a] text-white min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <p className="text-red-400 mb-4">Error: {error}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="bg-[#0df20d] text-black px-4 py-2 rounded hover:bg-[#0be00b]"
+        >
+          Retry
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="bg-[#0a0a0a] text-white min-h-screen flex flex-col font-display">
@@ -85,23 +145,17 @@ export const MilestoneVerificationPage = () => {
             <div className="w-2 h-2 rounded-full bg-[#0df20d]" />
             Mainnet Live
           </div>
-          <button 
-            className="bg-[#283928] border border-[#0df20d]/20 hover:border-[#0df20d]/50 transition-colors text-white text-sm font-bold px-4 py-2 rounded"
-            onClick={async () => {
-              const { walletService } = await import('@/services/walletService');
-              try {
-                await walletService.connectWallet();
-                window.location.reload();
-              } catch (err) {
-                console.error('Wallet connection failed:', err);
-              }
-            }}
-          >
-            {(() => {
-              const addr = localStorage.getItem('sui_wallet_address');
-              return addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : 'Connect Wallet';
-            })()}
-          </button>
+          {isConnected && address ? (
+            <div className="flex items-center gap-2 bg-[#0df20d]/10 border border-[#0df20d]/30 rounded px-3 py-2">
+              <Icon name="account_balance_wallet" size="sm" className="text-[#0df20d]" />
+              <span className="text-white text-sm font-mono">{`${address.slice(0, 6)}...${address.slice(-4)}`}</span>
+            </div>
+          ) : (
+            <ConnectButton 
+              connectText="Connect Wallet"
+              className="bg-[#283928] border border-[#0df20d]/20 hover:border-[#0df20d]/50 transition-colors text-white text-sm font-bold px-4 py-2 rounded"
+            />
+          )}
         </div>
       </motion.header>
 
@@ -166,25 +220,22 @@ export const MilestoneVerificationPage = () => {
               />
             </div>
             <div className="flex justify-between text-sm text-gray-400">
-              <span>Contract #0x83...99a</span>
+              <span>Contract #{project?.on_chain_id || 'Loading...'}</span>
               <a href="#" className="text-[#0df20d] hover:underline">View on SUIerscan</a>
             </div>
           </motion.div>
 
-          {/* Verify Button */}
+          {/* Verify Buttons */}
           <motion.div 
-            className="text-center"
+            className="text-center space-y-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
+            {/* Demo Bypass Button */}
             <Button 
-              className={`w-full h-16 text-lg font-bold uppercase tracking-wider rounded-xl transition-all ${
-                isVerifying 
-                  ? 'bg-[#1c291c] border border-[#283928] text-gray-500 cursor-not-allowed'
-                  : 'bg-[#0df20d] hover:bg-[#0be00b] text-[#0a0a0a] shadow-[0_0_15px_rgba(13,242,13,0.4)]'
-              }`}
-              onClick={handleVerifyMilestone}
+              className="w-full h-16 text-lg font-bold uppercase tracking-wider rounded-xl transition-all bg-yellow-500 hover:bg-yellow-400 text-black shadow-[0_0_15px_rgba(234,179,8,0.4)]"
+              onClick={handleDemoBypass}
               disabled={isVerifying}
             >
               {isVerifying ? (
@@ -195,14 +246,29 @@ export const MilestoneVerificationPage = () => {
                   >
                     <Icon name="refresh" />
                   </motion.div>
-                  Initializing Verification...
+                  Processing Demo Approval...
                 </div>
               ) : (
-                'Verify Milestone via AI Oracle'
+                <>
+                  <Icon name="bolt" className="mr-2" />
+                  DEMO: Instant Approve & Release Funds
+                </>
               )}
             </Button>
-            <p className="text-gray-400 text-sm mt-4 max-w-md mx-auto">
-              Verification requires a 10s video scan of the site. Gemini 3 Flash will analyze the footage for concrete curing status.
+            <p className="text-yellow-500 text-xs font-bold uppercase tracking-wider">
+              ⚠️ Demo Mode: Bypasses AI verification
+            </p>
+
+            {/* Regular Verification Button */}
+            <Button 
+              className="w-full h-16 text-lg font-bold uppercase tracking-wider rounded-xl transition-all bg-[#0df20d] hover:bg-[#0be00b] text-[#0a0a0a] shadow-[0_0_15px_rgba(13,242,13,0.4)]"
+              onClick={handleVerifyMilestone}
+            >
+              <Icon name="videocam" className="mr-2" />
+              Upload Video for AI Verification
+            </Button>
+            <p className="text-gray-400 text-sm max-w-md mx-auto">
+              Standard verification requires a 10s video scan. Gemini 3 Flash will analyze the footage.
             </p>
           </motion.div>
 
@@ -246,6 +312,17 @@ export const MilestoneVerificationPage = () => {
           </motion.div>
         </div>
       </main>
+
+      {/* Transaction Notification */}
+      <TransactionNotification
+        show={notification.show}
+        type={notification.type}
+        title={notification.title}
+        message={notification.message}
+        txHash={notification.txHash}
+        explorerUrl={notification.txHash ? `https://suiexplorer.com/txblock/${notification.txHash}?network=testnet` : undefined}
+        onClose={() => setNotification({ ...notification, show: false })}
+      />
 
       {/* Footer */}
       <footer className="border-t border-[#283928] py-6 bg-[#111811]">

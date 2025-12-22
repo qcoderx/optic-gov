@@ -4,8 +4,10 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { projectService } from '@/services/projectService';
+import { useSuiWallet } from '@/hooks/useSuiWallet';
 
 export const ContractorDashboard = () => {
+  const { address } = useSuiWallet();
   const [activeFilter, setActiveFilter] = useState('Active');
   const [isNavigating, setIsNavigating] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
@@ -143,7 +145,7 @@ export const ContractorDashboard = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <span className="truncate">0x71C...9A21</span>
+                <span className="truncate">{address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Connect Wallet'}</span>
               </motion.button>
               <motion.button 
                 className="flex size-10 items-center justify-center rounded-lg bg-[#1c2720] border border-[#28392f] text-white hover:text-[#38e07b] transition-colors"
@@ -183,7 +185,7 @@ export const ContractorDashboard = () => {
         >
           <h1 className="text-white text-4xl font-black leading-tight tracking-[-0.033em]">Contractor Hub</h1>
           <p className="text-[#9db9a8] text-base font-normal">
-            Welcome back, Apex Construction. You have <span className="text-[#38e07b] font-bold">2 milestones</span> pending verification.
+            You have <span className="text-[#38e07b] font-bold">{stats.pendingVerifications}</span> milestone{stats.pendingVerifications !== 1 ? 's' : ''} pending verification.
           </p>
         </motion.div>
 
@@ -370,7 +372,7 @@ export const ContractorDashboard = () => {
                             onClick={() => {
                               setIsNavigating(true);
                               setTimeout(() => {
-                                window.location.href = `/contractor/verify/1`;
+                                window.location.href = `/contractor/verify/${project.id}`;
                               }, 1500);
                             }}
                           >
