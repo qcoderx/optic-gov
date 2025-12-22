@@ -68,14 +68,15 @@ export const MilestoneVerificationPage = () => {
       
       const result = await response.json();
       
-      console.log('🔗 Transaction Digest:', result.transaction_hash);
+      console.log('🔗 Full Response:', result);
+      console.log('🔗 Transaction Digest:', result.sui_transaction);
       
       setNotification({
         show: true,
         type: 'success',
         title: '✅ Demo Approval Successful!',
-        message: `Milestone approved and funds released. Transaction: ${result.transaction_hash || 'Pending'}`,
-        txHash: result.transaction_hash
+        message: `Milestone approved and funds released. Transaction: ${result.sui_transaction || 'Pending'}`,
+        txHash: result.sui_transaction
       });
       
       setTimeout(() => {
