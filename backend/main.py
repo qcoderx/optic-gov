@@ -256,7 +256,9 @@ class DemoApprovalRequest(BaseModel):
 
 @app.post("/demo-approve-milestone")
 async def demo_approve_milestone(request: DemoApprovalRequest, db: Session = Depends(get_db)):
-    """DEMO ONLY: Bypass video verification and approve milestone for fund release"""
+    """
+    MODIFIED: Now raises strict errors if blockchain payment fails.
+    """
     try:
         project = db.query(Project).filter(Project.id == request.project_id).first()
         if not project:
@@ -265,44 +267,45 @@ async def demo_approve_milestone(request: DemoApprovalRequest, db: Session = Dep
         milestone = db.query(Milestone).filter(Milestone.id == request.milestone_id).first()
         if not milestone:
             raise HTTPException(status_code=404, detail="Milestone not found")
+            
+        # 1. CRITICAL CHECK: Fail immediately if no blockchain ID
+        if not project.on_chain_id:
+            raise HTTPException(status_code=400, detail="❌ FATAL: This project is NOT on the blockchain. No 'on_chain_id' found in database.")
+
+        # Calculate amount
+        milestones = db.query(Milestone).filter(Milestone.project_id == project.id).all()
+        milestone_count = len(milestones) if milestones else 1
+        amount_sui = project.total_budget / milestone_count
+        payout_mist = int(amount_sui * 1_000_000_000)
         
-        # Mark milestone as verified
+        print(f"💰 ATTEMPTING PAYOUT: {amount_sui} SUI to project {project.on_chain_id}")
+
+        # 2. EXECUTE TRANSACTION
+        sui_tx = await release_funds_sui(str(project.on_chain_id), payout_mist)
+        
+        # 3. VERIFY TRANSACTION: Fail if no digest returned
+        if not sui_tx:
+            raise HTTPException(status_code=500, detail="❌ BLOCKCHAIN ERROR: Transaction failed. Check backend terminal for 'SUI Payout Failed' logs.")
+
+        # If we get here, it actually worked
         milestone.status = "verified"
         milestone.is_completed = True
+        db.commit()
         
-        # Release funds on SUI blockchain
-        if project.on_chain_id:
-            milestones = db.query(Milestone).filter(Milestone.project_id == project.id).all()
-            milestone_count = len(milestones) if milestones else 1
+        return {
+            "success": True,
+            "message": "Funds released successfully",
+            "sui_transaction": sui_tx,
+            "demo_mode": True
+        }
             
-            amount_sui = project.total_budget / milestone_count
-            payout_mist = int(amount_sui * 1_000_000_000)
-            
-            print(f"💰 DEMO: Releasing {amount_sui} SUI ({payout_mist} MIST) to contractor")
-            sui_tx = await release_funds_sui(str(project.on_chain_id), payout_mist)
-            
-            db.commit()
-            
-            return {
-                "success": True,
-                "message": "Demo approval successful - funds released",
-                "milestone_id": milestone.id,
-                "amount_sui": amount_sui,
-                "sui_transaction": sui_tx,
-                "demo_mode": True
-            }
-        else:
-            db.commit()
-            return {
-                "success": True,
-                "message": "Demo approval successful - no blockchain ID",
-                "milestone_id": milestone.id,
-                "demo_mode": True
-            }
-            
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Demo approval error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"CRITICAL PAYMENT ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Payment failed: {str(e)}")
 
 @app.post("/register")
 async def register_contractor(contractor: ContractorRegister, db: Session = Depends(get_db)):
