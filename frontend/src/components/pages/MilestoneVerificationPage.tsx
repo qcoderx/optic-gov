@@ -51,13 +51,18 @@ export const MilestoneVerificationPage = () => {
     
     setIsVerifying(true);
     try {
-      // If no on_chain_id, the backend will auto-generate one
+      // Use the first milestone from the project's milestones array
+      const firstMilestone = project.milestones?.[0];
+      if (!firstMilestone) {
+        throw new Error('No milestones found for this project');
+      }
+      
       const response = await fetch('https://optic-gov.onrender.com/demo-approve-milestone', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           project_id: project.id,
-          milestone_id: 45, // Use the milestone we created
+          milestone_id: firstMilestone.id,
           bypass: true
         })
       });
@@ -95,7 +100,10 @@ export const MilestoneVerificationPage = () => {
   };
 
   const handleVerifyMilestone = async () => {
-    window.location.href = `/contractor/milestone/1`; // Use first milestone for demo
+    const firstMilestone = project?.milestones?.[0];
+    if (firstMilestone) {
+      window.location.href = `/contractor/milestone/${firstMilestone.id}`;
+    }
   };
 
   if (loading) return (

@@ -269,7 +269,7 @@ async def demo_approve_milestone(request: DemoApprovalRequest, db: Session = Dep
             raise HTTPException(status_code=404, detail="Milestone not found")
             
         # 1. CRITICAL CHECK: Fail immediately if no blockchain ID
-        if not project.on_chain_id or project.on_chain_id.strip() == "":
+        if not project.on_chain_id or str(project.on_chain_id).strip() == "":
             raise HTTPException(
                 status_code=400, 
                 detail=f"❌ FATAL: Project {project.id} is NOT on the blockchain. Missing 'on_chain_id'. Please create the project on SUI blockchain first using the SUI service."
