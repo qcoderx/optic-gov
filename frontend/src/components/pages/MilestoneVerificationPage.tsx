@@ -68,6 +68,8 @@ export const MilestoneVerificationPage = () => {
       
       const result = await response.json();
       
+      console.log('🔗 Transaction Digest:', result.transaction_hash);
+      
       setNotification({
         show: true,
         type: 'success',

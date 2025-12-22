@@ -98,6 +98,8 @@ class ProjectService {
             },
           });
 
+          console.log('🔗 SUI Project Created - Object ID:', objectId);
+
           // Save the on-chain ID back to the database
           await fetch(`${API_BASE_URL}/projects/${result.id}`, {
             method: "PUT",

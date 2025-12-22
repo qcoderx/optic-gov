@@ -181,6 +181,14 @@ export const MilestoneSubmission = () => {
       
       console.log('✅ Real verification result:', result);
       
+      // Log transaction digest to console
+      if (result.sui_transaction) {
+        console.log('🔗 SUI Transaction Digest:', result.sui_transaction);
+      }
+      if (result.ethereum_transaction) {
+        console.log('🔗 Ethereum Transaction Hash:', result.ethereum_transaction);
+      }
+      
       // Show success notification
       setNotification({
         show: true,
