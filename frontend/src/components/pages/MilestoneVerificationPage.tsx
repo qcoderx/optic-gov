@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { TransactionNotification } from '@/components/ui/TransactionNotification';
 import { useSuiWallet } from '@/hooks/useSuiWallet';
 import { ConnectButton } from '@mysten/dapp-kit';
 
@@ -13,6 +14,13 @@ export const MilestoneVerificationPage = () => {
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    type: 'success' | 'error';
+    title: string;
+    message: string;
+    txHash?: string;
+  }>({ show: false, type: 'success', title: '', message: '' });
 
   useEffect(() => {
     loadProjectData();
@@ -53,12 +61,31 @@ export const MilestoneVerificationPage = () => {
         })
       });
       
-      if (!response.ok) throw new Error('Demo approval failed');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Demo approval failed');
+      }
       
-      alert('✅ Demo: Milestone approved! Funds released.');
-      window.location.href = '/contractor';
+      const result = await response.json();
+      
+      setNotification({
+        show: true,
+        type: 'success',
+        title: '✅ Demo Approval Successful!',
+        message: `Milestone approved and funds released. Transaction: ${result.transaction_hash || 'Pending'}`,
+        txHash: result.transaction_hash
+      });
+      
+      setTimeout(() => {
+        window.location.href = '/contractor';
+      }, 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Demo approval failed');
+      setNotification({
+        show: true,
+        type: 'error',
+        title: '❌ Demo Approval Failed',
+        message: err instanceof Error ? err.message : 'Failed to approve milestone. Please try again.'
+      });
       setIsVerifying(false);
     }
   };
@@ -261,6 +288,17 @@ export const MilestoneVerificationPage = () => {
           </motion.div>
         </div>
       </main>
+
+      {/* Transaction Notification */}
+      <TransactionNotification
+        show={notification.show}
+        type={notification.type}
+        title={notification.title}
+        message={notification.message}
+        txHash={notification.txHash}
+        explorerUrl={notification.txHash ? `https://suiexplorer.com/txblock/${notification.txHash}?network=testnet` : undefined}
+        onClose={() => setNotification({ ...notification, show: false })}
+      />
 
       {/* Footer */}
       <footer className="border-t border-[#283928] py-6 bg-[#111811]">

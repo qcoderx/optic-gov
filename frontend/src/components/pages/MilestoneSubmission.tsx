@@ -172,11 +172,30 @@ export const MilestoneSubmission = () => {
       });
       
       console.log('✅ Real verification result:', result);
+      
+      // Show success notification
+      setNotification({
+        show: true,
+        type: 'success',
+        title: '✅ Milestone Verified!',
+        message: `AI verification successful with ${(result.confidence * 100).toFixed(1)}% confidence. Funds released.`,
+        txHash: result.sui_transaction || result.ethereum_transaction
+      });
+      
       setVerificationResult(result);
       setShowModal(true);
       
     } catch (error) {
       console.error('Verification failed:', error);
+      
+      // Show error notification
+      setNotification({
+        show: true,
+        type: 'error',
+        title: '❌ Verification Failed',
+        message: error instanceof Error ? error.message : 'AI verification failed. Please check your submission.'
+      });
+      
       setVerificationResult({
         verified: false,
         confidence: 0,
@@ -568,6 +587,17 @@ export const MilestoneSubmission = () => {
           </div>
         </div>
       </main>
+
+      {/* Transaction Notification */}
+      <TransactionNotification
+        show={notification.show}
+        type={notification.type}
+        title={notification.title}
+        message={notification.message}
+        txHash={notification.txHash}
+        explorerUrl={notification.txHash ? `https://suiexplorer.com/txblock/${notification.txHash}?network=testnet` : undefined}
+        onClose={() => setNotification({ ...notification, show: false })}
+      />
 
       {/* Verification Modal */}
       {showModal && verificationResult && (
