@@ -39,6 +39,10 @@ class MantleService {
   }
 
   private async switchToMantle() {
+    if (!window.ethereum) {
+      throw new Error('MetaMask not installed');
+    }
+
     try {
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
@@ -68,6 +72,10 @@ class MantleService {
     milestoneDescriptions: string[],
     totalBudgetMNT: string
   ): Promise<{ projectId: number; txHash: string }> {
+    if (!window.ethereum) {
+      throw new Error('MetaMask not installed');
+    }
+
     const provider = new ethers.BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
     const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
@@ -104,6 +112,10 @@ class MantleService {
   }
 
   async submitEvidence(projectId: number, milestoneIndex: number, ipfsHash: string): Promise<string> {
+    if (!window.ethereum) {
+      throw new Error('MetaMask not installed');
+    }
+
     const provider = new ethers.BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
     const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);

@@ -4,13 +4,11 @@ import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { TransactionNotification } from '@/components/ui/TransactionNotification';
-import { useSuiWallet } from '@/hooks/useSuiWallet';
-import { ConnectButton } from '@mysten/dapp-kit';
-import { walletService } from '@/services/walletService';
+import { useWallet } from '@/hooks/useWallet';
 
 export const MilestoneSubmission = () => {
   const { milestoneId } = useParams();
-  const { address, isConnected, signAndExecute } = useSuiWallet();
+  const { address, isConnected } = useWallet();
   const [project, setProject] = useState<any>(null);
   const [milestone, setMilestone] = useState<any>(null);
   const [comments, setComments] = useState('');
@@ -33,12 +31,7 @@ export const MilestoneSubmission = () => {
     txHash?: string;
   }>({ show: false, type: 'success', title: '', message: '' });
 
-  useEffect(() => {
-    if (signAndExecute && address) {
-      walletService.setSignAndExecute(signAndExecute);
-      localStorage.setItem('sui_wallet_address', address);
-    }
-  }, [signAndExecute, address]);
+
 
   useEffect(() => {
     loadProjectData();
@@ -75,11 +68,10 @@ export const MilestoneSubmission = () => {
 
         // 3. Optional: Get on-chain state if ID exists (Funds released, etc.)
         if (projectData.on_chain_id) {
-          const { suiService } = await import('@/services/suiService');
-          // We don't block on this, just log for debugging
-          suiService.getProjectState(projectData.on_chain_id.toString())
-            .then(state => console.log('SUI On-Chain State:', state))
-            .catch(err => console.warn('Failed to fetch SUI state:', err));
+          const { mantleService } = await import('@/services/mantleService');
+          mantleService.getProjectState(Number(projectData.on_chain_id))
+            .then(state => console.log('Mantle On-Chain State:', state))
+            .catch(err => console.warn('Failed to fetch Mantle state:', err));
         }
 
       } else {
@@ -181,12 +173,9 @@ export const MilestoneSubmission = () => {
       
       console.log('✅ Real verification result:', result);
       
-      // Log transaction digest to console
-      if (result.sui_transaction) {
-        console.log('🔗 SUI Transaction Digest:', result.sui_transaction);
-      }
+      // Log transaction hash to console
       if (result.ethereum_transaction) {
-        console.log('🔗 Ethereum Transaction Hash:', result.ethereum_transaction);
+        console.log('🔗 Mantle Transaction Hash:', result.ethereum_transaction);
       }
       
       // Show success notification
@@ -195,7 +184,7 @@ export const MilestoneSubmission = () => {
         type: 'success',
         title: '✅ Milestone Verified!',
         message: `AI verification successful with ${(result.confidence * 100).toFixed(1)}% confidence. Funds released.`,
-        txHash: result.sui_transaction || result.ethereum_transaction
+        txHash: result.ethereum_transaction
       });
       
       setVerificationResult(result);
@@ -337,10 +326,12 @@ export const MilestoneSubmission = () => {
               <span className="text-white text-sm font-mono">{`${address.slice(0, 6)}...${address.slice(-4)}`}</span>
             </div>
           ) : (
-            <ConnectButton 
-              connectText="Connect Wallet"
+            <button 
+              onClick={() => window.ethereum?.request({ method: 'eth_requestAccounts' })}
               className="bg-[#283928] border border-[#0df20d]/20 hover:border-[#0df20d]/50 transition-colors text-white text-sm font-bold px-4 py-2 rounded"
-            />
+            >
+              Connect Wallet
+            </button>
           )}
         </div>
       </motion.header>
@@ -611,7 +602,7 @@ export const MilestoneSubmission = () => {
         title={notification.title}
         message={notification.message}
         txHash={notification.txHash}
-        explorerUrl={notification.txHash ? `https://suiexplorer.com/txblock/${notification.txHash}?network=testnet` : undefined}
+        explorerUrl={notification.txHash ? `https://explorer.sepolia.mantle.xyz/tx/${notification.txHash}` : undefined}
         onClose={() => setNotification({ ...notification, show: false })}
       />
 

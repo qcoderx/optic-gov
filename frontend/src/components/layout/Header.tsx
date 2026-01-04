@@ -1,6 +1,5 @@
-import { SuiConnectButton } from '@/components/ui/SuiConnectButton';
 import { Icon } from '@/components/ui/Icon';
-import { useSuiWallet } from '@/hooks/useSuiWallet';
+import { useWallet } from '@/hooks/useWallet';
 
 const navigation = [
   { name: 'How it Works', href: '#how-it-works' },
@@ -10,7 +9,7 @@ const navigation = [
 ];
 
 export const Header = () => {
-  const { address, isConnected } = useSuiWallet();
+  const { address, isConnected } = useWallet();
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -82,7 +81,12 @@ export const Header = () => {
                 <span className="text-white text-sm font-mono">{formatAddress(address)}</span>
               </div>
             ) : (
-              <SuiConnectButton />
+              <button 
+                onClick={() => window.ethereum?.request({ method: 'eth_requestAccounts' })}
+                className="bg-[#38e07b] hover:bg-[#22c565] text-[#111814] font-bold px-6 py-2 rounded-full"
+              >
+                Connect Wallet
+              </button>
             )}
           </div>
         </div>

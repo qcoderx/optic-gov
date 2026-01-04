@@ -49,7 +49,7 @@ class AIService {
       return await response.json();
     } catch (error) {
       console.error("AI verification error:", error);
-      throw error; // No mock fallback
+      throw error;
     }
   }
 
@@ -99,42 +99,29 @@ export async function verifyMilestoneWithBackend(
   request: AIAnalysisRequest
 ): Promise<VerificationResult> {
   try {
-    // CRITICAL: Submit evidence to blockchain FIRST before backend verification
-    // This ensures the audit trail is recorded before funds are released
+    // Submit evidence to Mantle blockchain first
     try {
-      const { suiService } = await import("./suiService");
-      const { walletService } = await import("./walletService");
+      const { mantleService } = await import("./mantleService");
 
-      const walletSigner = walletService.getSigner();
-      if (walletSigner) {
-        // FIX: Use the actual SUI Object ID (on_chain_id) if available.
-        // Fallback to project_id.toString() only if necessary, but that usually fails for SUI calls.
-        const targetObjectId = request.on_chain_id || request.project_id.toString();
-
-        if (!request.on_chain_id) {
-            console.warn("⚠️ Warning: No on_chain_id provided. Using database ID, which may fail on-chain.");
-        }
-
-        await suiService.submitMilestone(
-          walletSigner,
-          targetObjectId, 
-          {
-            evidence_url: request.video_url,
-          }
-        );
-        console.log("✅ Evidence submitted to blockchain first");
+      if (!request.on_chain_id) {
+        console.warn("⚠️ Warning: No on_chain_id provided. Skipping blockchain evidence submission.");
       } else {
-        throw new Error("Wallet not connected - cannot submit evidence");
+        await mantleService.submitEvidence(
+          Number(request.on_chain_id),
+          request.milestone_index,
+          request.video_url
+        );
+        console.log("✅ Evidence submitted to Mantle blockchain");
       }
-    } catch (suiError) {
+    } catch (mantleError) {
       console.error(
-        "❌ CRITICAL: Failed to submit evidence to blockchain:",
-        suiError
+        "❌ Failed to submit evidence to blockchain:",
+        mantleError
       );
       throw new Error("Must submit evidence on-chain before verification");
     }
 
-    // Now call backend verification (which will release funds if successful)
+    // Now call backend verification
     const response = await fetch(
       "https://optic-gov.onrender.com/verify-milestone",
       {

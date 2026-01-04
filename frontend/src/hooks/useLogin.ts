@@ -75,8 +75,12 @@ export const useLogin = () => {
   const connectWallet = async () => {
     setIsLoading(true);
     try {
-      const { useSuiWallet } = await import('@/hooks/useSuiWallet');
-      const { address } = useSuiWallet();
+      if (!window.ethereum) {
+        throw new Error('MetaMask not installed');
+      }
+      
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const address = accounts[0];
       
       if (!address) {
         throw new Error('Please connect your wallet first');

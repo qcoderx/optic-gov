@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { projectService } from '@/services/projectService';
-import { suiService } from '@/services/suiService';
+import { mantleService } from '@/services/mantleService';
 
 export function useRealTimeProjects() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -14,23 +14,34 @@ export function useRealTimeProjects() {
       // Fetch from backend
       const backendData = await projectService.getAllProjects();
       
-      // Fetch from SUI blockchain
+      // Fetch from Mantle blockchain
       try {
-        const suiProjects = await suiService.getProjects();
+        const mantleProjects = await Promise.all(
+          backendData.projects
+            .filter(p => p.on_chain_id)
+            .map(async (p) => {
+              try {
+                const state = await mantleService.getProjectState(Number(p.on_chain_id));
+                return { id: p.id, state };
+              } catch {
+                return null;
+              }
+            })
+        );
         
         // Merge backend and blockchain data
         const mergedProjects = backendData.projects.map(backendProject => {
-          const suiProject = suiProjects.find(sp => sp.id === backendProject.id);
+          const mantleProject = mantleProjects.find(mp => mp?.id === backendProject.id);
           return {
             ...backendProject,
-            blockchain_data: suiProject,
-            is_synced: !!suiProject
+            blockchain_data: mantleProject?.state,
+            is_synced: !!mantleProject
           };
         });
         
         setProjects(mergedProjects);
-      } catch (suiError) {
-        console.warn('SUI fetch failed, using backend only:', suiError);
+      } catch (mantleError) {
+        console.warn('Mantle fetch failed, using backend only:', mantleError);
         setProjects(backendData.projects.map(p => ({ ...p, is_synced: false })));
       }
       
@@ -66,9 +77,12 @@ export function useRealTimeMilestones(projectId: string) {
     try {
       setError(null);
       
-      // Fetch milestones from SUI blockchain
-      const suiMilestones = await suiService.getProjectMilestones(projectId);
-      setMilestones(suiMilestones);
+      // Fetch milestones from backend (Mantle data is stored in backend)
+      const response = await fetch(`https://optic-gov.onrender.com/projects/${projectId}/milestones`);
+      if (!response.ok) throw new Error('Failed to fetch milestones');
+      
+      const data = await response.json();
+      setMilestones(data.milestones || []);
       
     } catch (error) {
       console.error('Failed to fetch milestones:', error);
