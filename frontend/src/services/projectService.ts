@@ -78,32 +78,34 @@ class ProjectService {
 
       const result = await response.json();
 
-      // Also create on SUI blockchain
+      // Create on Mantle blockchain
       try {
-        const { suiService } = await import("./suiService");
+        const { mantleService } = await import("./mantleService");
         const { walletService } = await import("./walletService");
 
-        const walletSigner = walletService.getSigner();
-        if (!walletSigner) {
-          console.warn("No wallet connected for SUI creation");
+        const walletAddress = walletService.getAddress();
+        if (!walletAddress) {
+          console.warn("No wallet connected for Mantle creation");
           return result;
         }
+
+        const milestones = result.milestones_created || project.manual_milestones?.length || 1;
+        const milestoneAmountMNT = (project.total_budget / milestones).toString();
+        const milestoneAmountWei = (parseFloat(milestoneAmountMNT) * 1e18).toString();
         
-        const objectId = await suiService.createProject(walletSigner, {
-          name: project.name,
-          description: project.description,
-          budget: project.total_budget,
-          contractor: project.contractor_wallet,
-          location: {
-            lat: project.project_latitude,
-            lng: project.project_longitude,
-          },
-        });
+        const milestoneAmounts = Array(milestones).fill(milestoneAmountWei);
+        const milestoneDescriptions = project.manual_milestones || Array(milestones).fill("Milestone");
 
-        console.log('🔗 SUI Project Created - Object ID:', objectId);
+        const { projectId, txHash } = await mantleService.createProject(
+          project.contractor_wallet,
+          milestoneAmounts,
+          milestoneDescriptions,
+          project.total_budget.toString()
+        );
 
-        // Save the on-chain ID back to the database
-        const updateResponse = await fetch(`${API_BASE_URL}/projects/${result.project_id}/on-chain-id?on_chain_id=${objectId}`, {
+        console.log('Mantle Project Created - ID:', projectId, 'TX:', txHash);
+
+        const updateResponse = await fetch(`${API_BASE_URL}/projects/${result.project_id}/on-chain-id?on_chain_id=${projectId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
         });
@@ -111,12 +113,13 @@ class ProjectService {
         if (!updateResponse.ok) {
           console.error('Failed to update on_chain_id in database');
         } else {
-          console.log('✅ on_chain_id saved to database');
+          console.log('on_chain_id saved to database');
         }
         
-        result.on_chain_id = objectId;
-      } catch (suiError) {
-        console.error("SUI blockchain creation failed:", suiError);
+        result.on_chain_id = projectId;
+        result.tx_hash = txHash;
+      } catch (mantleError) {
+        console.error("Mantle blockchain creation failed:", mantleError);
       }
 
       return result;

@@ -4,12 +4,11 @@ import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { TransactionNotification } from '@/components/ui/TransactionNotification';
-import { useSuiWallet } from '@/hooks/useSuiWallet';
-import { ConnectButton } from '@mysten/dapp-kit';
+import { useWallet } from '@/hooks/useWallet';
 
 export const MilestoneVerificationPage = () => {
   const { milestoneId } = useParams();
-  const { address, isConnected } = useSuiWallet();
+  const { address, isConnected, connect } = useWallet();
   const [isVerifying, setIsVerifying] = useState(false);
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -157,10 +156,12 @@ export const MilestoneVerificationPage = () => {
               <span className="text-white text-sm font-mono">{`${address.slice(0, 6)}...${address.slice(-4)}`}</span>
             </div>
           ) : (
-            <ConnectButton 
-              connectText="Connect Wallet"
+            <button
+              onClick={connect}
               className="bg-[#283928] border border-[#0df20d]/20 hover:border-[#0df20d]/50 transition-colors text-white text-sm font-bold px-4 py-2 rounded"
-            />
+            >
+              Connect Wallet
+            </button>
           )}
         </div>
       </motion.header>

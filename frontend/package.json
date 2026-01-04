@@ -11,10 +11,9 @@
   },
   "dependencies": {
     "@googlemaps/react-wrapper": "^1.2.0",
-    "@mysten/dapp-kit": "^0.19.11",
-    "@mysten/sui.js": "^0.54.1",
     "@tanstack/react-query": "^5.90.12",
     "clsx": "^2.0.0",
+    "ethers": "^6.13.0",
     "framer-motion": "^10.18.0",
     "leaflet": "^1.9.4",
     "react": "^18.2.0",

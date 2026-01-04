@@ -1,49 +1,53 @@
-import { useState, useCallback, useEffect } from 'react';
-import type { WalletState } from '@/types';
-import { useSuiWallet } from './useSuiWallet';
+import { useState, useEffect } from 'react';
+import { walletService } from '@/services/walletService';
 
 export const useWallet = () => {
-  const { address: suiAddress, isConnected: suiConnected, disconnect } = useSuiWallet();
-  
-  const [walletState, setWalletState] = useState<WalletState>({
-    isConnected: false,
-    isConnecting: false,
-  });
+  const [address, setAddress] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    if (suiConnected && suiAddress) {
-      setWalletState({
-        isConnected: true,
-        address: suiAddress,
-        isConnecting: false,
-      });
-    } else {
-      setWalletState({
-        isConnected: false,
-        isConnecting: false,
+    const savedAddress = walletService.getAddress();
+    if (savedAddress) {
+      setAddress(savedAddress);
+      setIsConnected(true);
+    }
+
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', (accounts: string[]) => {
+        if (accounts.length > 0) {
+          setAddress(accounts[0]);
+          setIsConnected(true);
+          localStorage.setItem('wallet_address', accounts[0]);
+        } else {
+          setAddress(null);
+          setIsConnected(false);
+          localStorage.removeItem('wallet_address');
+        }
       });
     }
-  }, [suiConnected, suiAddress]);
-
-  const connectWallet = useCallback(async () => {
-    setWalletState(prev => ({ ...prev, isConnecting: true, error: undefined }));
-    // Connection is handled by SuiConnectButton component
-    // This is just for compatibility with existing code
   }, []);
 
-  const disconnectWallet = useCallback(() => {
-    disconnect();
-    setWalletState({
-      isConnected: false,
-      isConnecting: false,
-      address: undefined,
-      error: undefined,
-    });
-  }, [disconnect]);
+  const connect = async () => {
+    try {
+      const addr = await walletService.connectWallet();
+      setAddress(addr);
+      setIsConnected(true);
+    } catch (error) {
+      console.error('Wallet connection failed:', error);
+      throw error;
+    }
+  };
+
+  const disconnect = () => {
+    walletService.disconnect();
+    setAddress(null);
+    setIsConnected(false);
+  };
 
   return {
-    ...walletState,
-    connectWallet,
-    disconnectWallet,
+    address,
+    isConnected,
+    connect,
+    disconnect,
   };
 };

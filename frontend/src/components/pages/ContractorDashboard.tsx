@@ -4,10 +4,10 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { projectService } from '@/services/projectService';
-import { useSuiWallet } from '@/hooks/useSuiWallet';
+import { useWallet } from '@/hooks/useWallet';
 
 export const ContractorDashboard = () => {
-  const { address } = useSuiWallet();
+  const { address } = useWallet();
   const [activeFilter, setActiveFilter] = useState('Active');
   const [isNavigating, setIsNavigating] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);

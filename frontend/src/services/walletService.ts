@@ -1,63 +1,74 @@
-import { SuiClient, getFullnodeUrl } from '@mysten/sui.js/client';
+import { ethers } from 'ethers';
+
+const MANTLE_CHAIN_ID = 5003;
 
 export class WalletService {
-  private client: SuiClient;
-  private signAndExecuteFn: any = null;
-
-  constructor() {
-    this.client = new SuiClient({ url: getFullnodeUrl('testnet') });
-  }
-
-  setSignAndExecute(fn: any) {
-    this.signAndExecuteFn = fn;
-  }
+  private provider: ethers.BrowserProvider | null = null;
 
   async connectWallet(): Promise<string> {
+    if (!window.ethereum) {
+      throw new Error('MetaMask not installed. Please install MetaMask to continue.');
+    }
+
+    this.provider = new ethers.BrowserProvider(window.ethereum);
+    const accounts = await this.provider.send('eth_requestAccounts', []);
+    
+    const network = await this.provider.getNetwork();
+    if (Number(network.chainId) !== MANTLE_CHAIN_ID) {
+      await this.switchToMantle();
+    }
+
+    const address = accounts[0];
+    localStorage.setItem('wallet_address', address);
+    return address;
+  }
+
+  private async switchToMantle() {
+    if (!window.ethereum) return;
+
     try {
-      if (typeof window !== 'undefined' && (window as any).suiWallet) {
-        await (window as any).suiWallet.requestPermissions();
-        const accounts = await (window as any).suiWallet.getAccounts();
-        
-        if (accounts.length > 0) {
-          const address = accounts[0];
-          localStorage.setItem('sui_wallet_address', address);
-          return address;
-        }
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: `0x${MANTLE_CHAIN_ID.toString(16)}` }],
+      });
+    } catch (error: any) {
+      if (error.code === 4902) {
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: `0x${MANTLE_CHAIN_ID.toString(16)}`,
+            chainName: 'Mantle Sepolia Testnet',
+            nativeCurrency: { name: 'MNT', symbol: 'MNT', decimals: 18 },
+            rpcUrls: ['https://rpc.sepolia.mantle.xyz'],
+            blockExplorerUrls: ['https://explorer.sepolia.mantle.xyz']
+          }],
+        });
+      } else {
+        throw error;
       }
-      
-      throw new Error('No Sui wallet detected. Please install Sui Wallet, Suiet, or Ethos.');
-    } catch (error) {
-      console.error('Wallet connection failed:', error);
-      throw new Error('Failed to connect wallet');
     }
   }
 
-  async getBalance(): Promise<number> {
+  async getBalance(): Promise<string> {
     const address = this.getAddress();
-    if (!address) throw new Error('Wallet not connected');
+    if (!address || !this.provider) return '0';
     
     try {
-      const balance = await this.client.getBalance({ owner: address });
-      return parseInt(balance.totalBalance) / 1000000000;
+      const balance = await this.provider.getBalance(address);
+      return ethers.formatEther(balance);
     } catch (error) {
       console.error('Failed to get balance:', error);
-      return 0;
+      return '0';
     }
-  }
-
-  getSigner(): any {
-    return this.signAndExecuteFn ? {
-      signAndExecuteTransactionBlock: this.signAndExecuteFn
-    } : null;
   }
 
   getAddress(): string | null {
-    return localStorage.getItem('sui_wallet_address');
+    return localStorage.getItem('wallet_address');
   }
 
   disconnect(): void {
-    this.signAndExecuteFn = null;
-    localStorage.removeItem('sui_wallet_address');
+    this.provider = null;
+    localStorage.removeItem('wallet_address');
   }
 }
 
