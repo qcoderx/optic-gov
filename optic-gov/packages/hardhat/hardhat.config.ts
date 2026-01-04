@@ -64,6 +64,10 @@ const config: HardhatUserConfig = {
       url: `https://eth-sepolia.g.alchemy.com/v2/${providerApiKey}`, 
       accounts: [deployerPrivateKey],
     },
+    mantleSepolia: {
+      url: "https://rpc.sepolia.mantle.xyz",
+      accounts: [deployerPrivateKey],
+    },
     arbitrum: {
       url: `https://arb-mainnet.g.alchemy.com/v2/${providerApiKey}`,
       accounts: [deployerPrivateKey],
@@ -131,7 +135,19 @@ const config: HardhatUserConfig = {
   },
   // Configuration for harhdat-verify plugin
   etherscan: {
-    apiKey: etherscanApiKey,
+    apiKey: {
+      mantleSepolia: "NO_KEY_REQUIRED", // Mantle Sepolia doesn't require an API key for verification
+    },
+    customChains: [
+      {
+        network: "mantleSepolia",
+        chainId: 5003,
+        urls: {
+          apiURL: "https://explorer.sepolia.mantle.xyz/api",
+          browserURL: "https://explorer.sepolia.mantle.xyz",
+        },
+      },
+    ],
   },
   // Configuration for etherscan-verify from hardhat-deploy plugin
   verify: {

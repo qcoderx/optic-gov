@@ -5,6 +5,365 @@
 import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 
 const deployedContracts = {
+  5003: {
+    OpticGov: {
+      address: "0x25b4C5e58BdF3124095aD925fd480eD5D17e9e64",
+      abi: [
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "_oracleAddress",
+              type: "address",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "constructor",
+        },
+        {
+          inputs: [],
+          name: "AlreadyCompleted",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidAmount",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidLength",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "projectId",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "milestoneIndex",
+              type: "uint256",
+            },
+          ],
+          name: "InvalidMilestone",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "contractor",
+              type: "address",
+            },
+          ],
+          name: "OnlyContractor",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ProjectDoesNotExist",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "TransferFailed",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "caller",
+              type: "address",
+            },
+          ],
+          name: "Unauthorized",
+          type: "error",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "projectId",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "milestoneIndex",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "string",
+              name: "ipfsHash",
+              type: "string",
+            },
+          ],
+          name: "EvidenceSubmitted",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "projectId",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "milestoneIndex",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          name: "MilestoneReleased",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "projectId",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "funder",
+              type: "address",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "contractor",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "budget",
+              type: "uint256",
+            },
+          ],
+          name: "ProjectCreated",
+          type: "event",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "_contractor",
+              type: "address",
+            },
+            {
+              internalType: "uint256[]",
+              name: "_milestoneAmounts",
+              type: "uint256[]",
+            },
+            {
+              internalType: "string[]",
+              name: "_milestoneDescriptions",
+              type: "string[]",
+            },
+          ],
+          name: "createProject",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "payable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "_projectId",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "_index",
+              type: "uint256",
+            },
+          ],
+          name: "getMilestone",
+          outputs: [
+            {
+              components: [
+                {
+                  internalType: "string",
+                  name: "description",
+                  type: "string",
+                },
+                {
+                  internalType: "uint256",
+                  name: "amount",
+                  type: "uint256",
+                },
+                {
+                  internalType: "bool",
+                  name: "isCompleted",
+                  type: "bool",
+                },
+                {
+                  internalType: "bool",
+                  name: "isReleased",
+                  type: "bool",
+                },
+                {
+                  internalType: "string",
+                  name: "evidenceIpfsHash",
+                  type: "string",
+                },
+              ],
+              internalType: "struct OpticGov.Milestone",
+              name: "",
+              type: "tuple",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "nextProjectId",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "oracleAddress",
+          outputs: [
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          name: "projects",
+          outputs: [
+            {
+              internalType: "address",
+              name: "funder",
+              type: "address",
+            },
+            {
+              internalType: "address",
+              name: "contractor",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "totalBudget",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "fundsReleased",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "milestoneCount",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "_projectId",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "_milestoneIndex",
+              type: "uint256",
+            },
+            {
+              internalType: "bool",
+              name: "_verdict",
+              type: "bool",
+            },
+          ],
+          name: "releaseMilestone",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "_projectId",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "_milestoneIndex",
+              type: "uint256",
+            },
+            {
+              internalType: "string",
+              name: "_ipfsHash",
+              type: "string",
+            },
+          ],
+          name: "submitEvidence",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          stateMutability: "payable",
+          type: "receive",
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 32993632,
+    },
+  },
   11155111: {
     OpticGov: {
       address: "0x8025A6A123f55feb7dD24e3e27b38D02b4F59971",

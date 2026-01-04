@@ -13,4 +13,3 @@ exifread
 ffmpeg-python
 geopy
 cloudinary
-pysui==0.65.0

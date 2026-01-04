@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
+/**
+ * @title OpticGov
+ * @dev Transparency-focused project management and funding contract.
+ */
 contract OpticGov {
-    // --- Custom Errors (Gas efficient and best practice) ---
+    // --- Custom Errors ---
     error Unauthorized(address caller);
     error InvalidLength();
     error InvalidAmount();
@@ -10,12 +14,11 @@ contract OpticGov {
     error AlreadyCompleted();
     error TransferFailed();
     error OnlyContractor(address contractor);
+    error ProjectDoesNotExist();
 
-    // --- 1. STATE VARIABLES & STRUCTS ---
-
-    // The address of the AI Oracle, set once in the constructor.
+    // --- State Variables ---
     address public immutable oracleAddress;
-    // NOTE: Global 'funder' variable deleted
+    uint256 public nextProjectId;
 
     struct Milestone {
         string description;
@@ -26,7 +29,6 @@ contract OpticGov {
     }
 
     struct Project {
-        // NEW: Store the funder specific to this project
         address funder; 
         address contractor;
         uint256 totalBudget;
@@ -35,55 +37,48 @@ contract OpticGov {
         Milestone[] milestones;
     }
 
-    uint256 public nextProjectId; 
     mapping(uint256 => Project) public projects;
 
-    // --- 2. MODIFIERS & EVENTS ---
-
+    // --- Modifiers ---
     modifier onlyOracle() {
-        if (msg.sender != oracleAddress) {
-            revert Unauthorized(msg.sender); 
-        }
+        if (msg.sender != oracleAddress) revert Unauthorized(msg.sender); 
         _;
     }
 
-    // NOTE: onlyFunder modifier deleted
-    
-    event ProjectCreated(uint256 indexed projectId, address indexed contractor, uint256 budget);
+    // --- Events ---
+    event ProjectCreated(uint256 indexed projectId, address indexed funder, address indexed contractor, uint256 budget);
     event MilestoneReleased(uint256 indexed projectId, uint256 indexed milestoneIndex, uint256 amount);
     event EvidenceSubmitted(uint256 indexed projectId, uint256 indexed milestoneIndex, string ipfsHash);
 
-
-    // --- 3. CONSTRUCTOR ---
-
-    constructor(address _oracleAddress) { // Removed payable as funder logic is external
+    constructor(address _oracleAddress) {
+        if (_oracleAddress == address(0)) revert Unauthorized(address(0));
         oracleAddress = _oracleAddress;
-        // Removed: funder = msg.sender;
     }
 
-
-    // --- 4. FUNDER FUNCTION (Create Project) ---
-
+    /**
+     * @notice Creates a new project with set milestones.
+     * @param _contractor The wallet address of the worker/contractor.
+     * @param _milestoneAmounts Array of costs for each milestone.
+     * @param _milestoneDescriptions Array of text descriptions for each milestone.
+     */
     function createProject(
-        address _contractor,
-        uint256[] memory _milestoneAmounts,
-        string[] memory _milestoneDescriptions
-    ) external payable returns (uint256) { // Removed onlyFunder modifier
-        if (_milestoneAmounts.length != _milestoneDescriptions.length) {
-            revert InvalidLength();
-        }
-        
+        address _contractor, // <--- FIXED: Removed the extra "_contract" identifier
+        uint256[] calldata _milestoneAmounts,
+        string[] calldata _milestoneDescriptions
+    ) external payable returns (uint256) {
+        if (_milestoneAmounts.length != _milestoneDescriptions.length) revert InvalidLength();
+        if (_milestoneAmounts.length == 0) revert InvalidLength();
+
         uint256 totalProjectCost;
         for (uint256 i = 0; i < _milestoneAmounts.length; i++) {
             totalProjectCost += _milestoneAmounts[i];
         }
 
-        if (msg.value != totalProjectCost) {
-            revert InvalidAmount();
-        }
+        if (msg.value != totalProjectCost) revert InvalidAmount();
 
-        Project storage newProject = projects[nextProjectId];
-        newProject.funder = msg.sender; // NEW: Store the sender (funder)
+        uint256 projectId = nextProjectId++;
+        Project storage newProject = projects[projectId];
+        newProject.funder = msg.sender;
         newProject.contractor = _contractor;
         newProject.totalBudget = totalProjectCost;
         newProject.milestoneCount = _milestoneAmounts.length;
@@ -98,36 +93,26 @@ contract OpticGov {
             }));
         }
 
-        emit ProjectCreated(nextProjectId, _contractor, totalProjectCost);
-        return nextProjectId++;
+        emit ProjectCreated(projectId, msg.sender, _contractor, totalProjectCost);
+        return projectId;
     }
-
-
-    // --- 5. CONTRACTOR FUNCTION (Submit Evidence) ---
 
     function submitEvidence(
         uint256 _projectId, 
         uint256 _milestoneIndex, 
-        string memory _ipfsHash
+        string calldata _ipfsHash
     ) external {
         Project storage project = projects[_projectId];
-        if (msg.sender != project.contractor) {
-            revert OnlyContractor(project.contractor);
-        }
-        if (_milestoneIndex >= project.milestoneCount) {
-            revert InvalidMilestone(_projectId, _milestoneIndex);
-        }
-        if (project.milestones[_milestoneIndex].isCompleted) {
-            revert AlreadyCompleted();
-        }
-
-        project.milestones[_milestoneIndex].evidenceIpfsHash = _ipfsHash;
+        if (project.funder == address(0)) revert ProjectDoesNotExist();
+        if (msg.sender != project.contractor) revert OnlyContractor(project.contractor);
+        if (_milestoneIndex >= project.milestoneCount) revert InvalidMilestone(_projectId, _milestoneIndex);
         
+        Milestone storage m = project.milestones[_milestoneIndex];
+        if (m.isCompleted) revert AlreadyCompleted();
+
+        m.evidenceIpfsHash = _ipfsHash;
         emit EvidenceSubmitted(_projectId, _milestoneIndex, _ipfsHash);
     }
-
-
-    // --- 6. ORACLE FUNCTION (The Pay Function) ---
 
     function releaseMilestone(
         uint256 _projectId, 
@@ -135,31 +120,29 @@ contract OpticGov {
         bool _verdict
     ) external onlyOracle {
         Project storage project = projects[_projectId];
+        if (_milestoneIndex >= project.milestoneCount) revert InvalidMilestone(_projectId, _milestoneIndex);
+        
         Milestone storage milestone = project.milestones[_milestoneIndex];
-
-        if (_milestoneIndex >= project.milestoneCount) {
-            revert InvalidMilestone(_projectId, _milestoneIndex);
-        }
-        if (milestone.isCompleted) {
-            revert AlreadyCompleted();
-        }
+        if (milestone.isCompleted) revert AlreadyCompleted();
         
         milestone.isCompleted = true; 
         
-        if (_verdict == true) {
+        if (_verdict) {
             milestone.isReleased = true; 
             project.fundsReleased += milestone.amount;
 
-            // Use call to send funds securely
+            // Using call instead of transfer for future-proofing and Mantle compatibility
             (bool success, ) = payable(project.contractor).call{value: milestone.amount}("");
-            if (!success) {
-                revert TransferFailed();
-            }
+            if (!success) revert TransferFailed();
             
             emit MilestoneReleased(_projectId, _milestoneIndex, milestone.amount);
         }
     }
 
-    // Allows the contract to receive ETH directly (e.g., in a simple transfer)
+    function getMilestone(uint256 _projectId, uint256 _index) external view returns (Milestone memory) {
+        return projects[_projectId].milestones[_index];
+    }
+
+    // Safety: Allow the contract to receive ETH/MNT directly if needed
     receive() external payable {}
 }
