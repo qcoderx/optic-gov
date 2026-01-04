@@ -1,34 +1,31 @@
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import google.generativeai as genai
-from web3 import Web3
 import os
-from dotenv import load_dotenv
 import json
-from sqlalchemy.orm import Session
-from database import get_db, Contractor, Project, Milestone
-from auth import hash_password, verify_password, create_access_token, verify_token
-from typing import List, Optional
+import time
 import requests
-
-# CORRECTED SUI IMPORTS for pysui 0.65.0d
-from pysui import SuiConfig, SyncClient
-from pysui.sui.sui_crypto import recover_key_and_address
-from pysui.sui.sui_txn import SyncTransaction
-
 import tempfile
 import shutil
 import subprocess
-import json as json_lib
+from datetime import datetime
+from typing import List, Optional
+
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from web3 import Web3
+from web3.middleware import ExtraDataToPOAMiddleware
 from geopy.distance import geodesic
-import time
-from datetime import datetime, timedelta
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+# Local imports (ensure these files exist in your directory)
+from database import get_db, Contractor, Project, Milestone
+from auth import hash_password, verify_password, create_access_token, verify_token
+
 load_dotenv()
 
-app = FastAPI(title="Optic-Gov AI Oracle")
+app = FastAPI(title="Optic-Gov Mantle AI Oracle")
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -37,78 +34,61 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure Gemini
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# --- CONFIGURATION ---
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-3-flash-preview')
 
-# Configure Web3 (Keep for legacy/fallback, but SUI is now primary)
-w3 = Web3(Web3.HTTPProvider(os.getenv("SEPOLIA_RPC_URL")))
-private_key = os.getenv("ETHEREUM_PRIVATE_KEY")
-contract_address = os.getenv("CONTRACT_ADDRESS")
+# Mantle Setup
+MANTLE_RPC_URL = os.getenv("MANTLE_RPC_URL", "https://rpc.sepolia.mantle.xyz")
+w3 = Web3(Web3.HTTPProvider(MANTLE_RPC_URL))
+w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)  # Required for L2s
 
-# Currency conversion cache (Switched to SUI)
-sui_ngn_cache = {"rate": None, "timestamp": None}
+ORACLE_PRIVATE_KEY = os.getenv("ETHEREUM_PRIVATE_KEY")
+CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS")
+ORACLE_ADDRESS = w3.eth.account.from_key(ORACLE_PRIVATE_KEY).address
+
+# Load ABI (Ensure the path is correct relative to main.py)
+ABI_FILE_PATH = os.path.join(BASE_DIR, "OpticGov.json")
+with open(ABI_FILE_PATH, "r") as f:
+    contract_json = json.load(f)
+    contract_abi = contract_json["abi"]
+
+optic_gov_contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=contract_abi)
+
+# --- HELPERS ---
+mnt_ngn_cache = {"rate": None, "timestamp": None}
 CACHE_DURATION = 300  # 5 minutes
 
-def get_sui_client():
-    """Initialize SUI client with oracle keypair"""
-    rpc_url = os.getenv("SUI_RPC_URL")
-    mnemonic = os.getenv("SUI_ORACLE_MNEMONIC")
-    
-    if not mnemonic:
-        print("❌ SUI_ORACLE_MNEMONIC not found in .env")
-        return None
-    
-    try:
-        _, kp, addr_obj = recover_key_and_address(
-            keytype=0,  # ED25519
-            mnemonics=mnemonic,
-            derv_path="m/44'/784'/0'/0'/0'"
-        )
-        
-        print(f"✅ SUI Oracle Address: {addr_obj.address}")
-        
-        cfg = SuiConfig.user_config(
-            rpc_url=rpc_url,
-            prv_keys=[kp.serialize()]
-        )
-        return SyncClient(cfg)
-        
-    except Exception as e:
-        print(f"❌ Failed to initialize SUI client: {e}")
-        return None
-
-# Initialize the client ONCE
-sui_client = get_sui_client()
-
-def get_sui_ngn_rate():
-    """Get SUI to NGN exchange rate with caching and error handling"""
+def get_mnt_ngn_rate():
+    """Fetch MNT to NGN exchange rate with caching"""
     current_time = time.time()
     
     # Check if cache is valid
-    if (sui_ngn_cache["rate"] is not None and 
-        sui_ngn_cache["timestamp"] is not None and 
-        current_time - sui_ngn_cache["timestamp"] < CACHE_DURATION):
-        return sui_ngn_cache["rate"]
+    if (mnt_ngn_cache["rate"] is not None and 
+        mnt_ngn_cache["timestamp"] is not None and 
+        current_time - mnt_ngn_cache["timestamp"] < CACHE_DURATION):
+        return mnt_ngn_cache["rate"]
     
     try:
-        # Get SUI price in USD from CoinGecko
-        sui_response = requests.get(
-            "https://api.coingecko.com/api/v3/simple/price?ids=sui&vs_currencies=usd",
+        # Get MNT price in USD from CoinGecko
+        mnt_response = requests.get(
+            "https://api.coingecko.com/api/v3/simple/price?ids=mantle&vs_currencies=usd",
             timeout=5
         )
         
         # Handle API errors gracefully
-        if sui_response.status_code != 200:
-            print(f"⚠️ CoinGecko Error: {sui_response.status_code}")
-            return sui_ngn_cache["rate"] if sui_ngn_cache["rate"] else 2500 # Default fallback
+        if mnt_response.status_code != 200:
+            print(f"⚠️ CoinGecko Error: {mnt_response.status_code}")
+            return mnt_ngn_cache["rate"] if mnt_ngn_cache["rate"] else 1200  # Default fallback
             
-        data = sui_response.json()
-        if "sui" not in data or "usd" not in data["sui"]:
+        data = mnt_response.json()
+        if "mantle" not in data or "usd" not in data["mantle"]:
             print("⚠️ CoinGecko malformed response")
-            return sui_ngn_cache["rate"] if sui_ngn_cache["rate"] else 2500
+            return mnt_ngn_cache["rate"] if mnt_ngn_cache["rate"] else 1200
 
-        sui_usd = data["sui"]["usd"]
+        mnt_usd = data["mantle"]["usd"]
         
         # Get USD to NGN rate
         usd_ngn_response = requests.get(
@@ -117,78 +97,92 @@ def get_sui_ngn_rate():
         )
         
         if usd_ngn_response.status_code != 200:
-             return sui_ngn_cache["rate"] if sui_ngn_cache["rate"] else 2500
+            return mnt_ngn_cache["rate"] if mnt_ngn_cache["rate"] else 1200
              
         usd_ngn = usd_ngn_response.json().get("rates", {}).get("NGN", 1500)
         
-        # Calculate SUI to NGN rate
-        sui_ngn_rate = sui_usd * usd_ngn
+        # Calculate MNT to NGN rate
+        mnt_ngn_rate = mnt_usd * usd_ngn
         
         # Update cache
-        sui_ngn_cache["rate"] = sui_ngn_rate
-        sui_ngn_cache["timestamp"] = current_time
+        mnt_ngn_cache["rate"] = mnt_ngn_rate
+        mnt_ngn_cache["timestamp"] = current_time
         
-        return sui_ngn_rate
+        return mnt_ngn_rate
         
     except Exception as e:
         print(f"⚠️ Exchange rate fetch failed (using cache/fallback): {str(e)[:50]}")
-        # Return cached rate if available, otherwise default
-        return sui_ngn_cache["rate"] if sui_ngn_cache["rate"] else 2500  # Fallback: ~1.6 USD * 1500 NGN
+        return mnt_ngn_cache["rate"] if mnt_ngn_cache["rate"] else 1200
 
-async def release_funds_sui(project_object_id: str, amount_mist: int):
-    """Trigger Sui contract to release funds"""
-    if not sui_client:
-        print("❌ SUI client not initialized")
-        return None
-    
-    try:
-        # 1. Create the Transaction Builder
-        txn = SyncTransaction(client=sui_client)
-        
-        package_id = os.getenv("SUI_PACKAGE_ID")
-        oracle_cap_id = os.getenv("SUI_ORACLE_CAP_ID")
-        
-        # 2. Correctly wrap the arguments
-        # Argument 0: The OracleCap (MUST BE AN OBJECT)
-        # Argument 1: The Project (MUST BE AN OBJECT)
-        # Argument 2: The Amount (MUST BE PURE U64)
-        
-        txn.move_call(
-            target=f"{package_id}::optic_gov::release_payment",
-            arguments=[
-                txn.builder.obj(oracle_cap_id),      # Pass as Object Reference
-                txn.builder.obj(project_object_id),  # Pass as Object Reference
-                txn.builder.pure(amount_mist)        # Pass as Pure Value (u64)
-            ],
-            type_arguments=[]
-        )
-        
-        # 3. Execute with enough gas
-        result = txn.execute(gas_budget="20000000") # Increased slightly for safety
-        
-        if result.is_ok():
-            digest = result.result_data.digest
-            print(f"✅ SUI Payout Successful: {digest}")
-            return digest
-        else:
-            print(f"❌ SUI Payout Failed: {result.result_string}")
-            return None
-            
-    except Exception as e:
-        print(f"❌ SUI transaction failed: {e}")
-        return None
-
-def convert_ngn_to_sui(ngn_amount: float) -> float:
-    """Convert NGN amount to SUI"""
-    rate = get_sui_ngn_rate()
+def convert_ngn_to_mnt(ngn_amount: float) -> float:
+    """Convert NGN amount to MNT"""
+    rate = get_mnt_ngn_rate()
     if rate == 0: return 0
     return ngn_amount / rate
 
-def convert_sui_to_ngn(sui_amount: float) -> float:
-    """Convert SUI amount to NGN"""
-    rate = get_sui_ngn_rate()
-    return sui_amount * rate
+def convert_mnt_to_ngn(mnt_amount: float) -> float:
+    """Convert MNT amount to NGN"""
+    rate = get_mnt_ngn_rate()
+    return mnt_amount * rate
 
+async def release_funds_mantle(project_on_chain_id: int, milestone_index: int):
+    """Trigger Mantle contract to release funds"""
+    try:
+        nonce = w3.eth.get_transaction_count(ORACLE_ADDRESS)
+        
+        # Build transaction
+        tx = optic_gov_contract.functions.releaseMilestone(
+            project_on_chain_id, 
+            milestone_index, 
+            True
+        ).build_transaction({
+            'chainId': 5003,  # Mantle Sepolia testnet chain ID
+            'gas': 300000,
+            'gasPrice': w3.eth.gas_price,
+            'nonce': nonce,
+        })
+        
+        # 1. Sign the transaction
+        # Ensure you use 'raw_transaction' (snake_case) for Web3.py v7
+        signed = w3.eth.account.sign_transaction(tx, ORACLE_PRIVATE_KEY)
+        
+        # 2. Send the transaction
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        
+        # 3. Convert bytes to a readable hex string (e.g., "0x...")
+        readable_hash = tx_hash.hex()
+        
+        print(f"✅ Mantle Payout Successful: {readable_hash}")
+        return readable_hash
+        
+    except Exception as e:
+        print(f"❌ Mantle transaction failed: {e}")
+        return None
+
+def extract_video_location(video_path: str):
+    try:
+        cmd = ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_format', video_path]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        metadata = json.loads(result.stdout)
+        tags = metadata.get('format', {}).get('tags', {})
+        
+        lat_keys = ['location-lat', 'GPS_LATITUDE', 'com.apple.quicktime.location.ISO6709']
+        lon_keys = ['location-lon', 'GPS_LONGITUDE', 'com.apple.quicktime.location.ISO6709']
+        
+        lat, lon = None, None
+        for key in lat_keys:
+            if key in tags:
+                lat = float(tags[key])
+                break
+        for key in lon_keys:
+            if key in tags:
+                lon = float(tags[key])
+                break
+        return lat, lon
+    except Exception:
+        return None, None
+
+# --- MODELS ---
 class ContractorRegister(BaseModel):
     wallet_address: str
     company_name: str
@@ -209,7 +203,7 @@ class ProjectCreate(BaseModel):
     name: str
     description: str
     total_budget: float
-    budget_currency: str = "NGN"  # "NGN" or "SUI"
+    budget_currency: str = "NGN"  # "NGN" or "MNT"
     contractor_wallet: str
     use_ai_milestones: bool
     manual_milestones: Optional[List[str]] = None
@@ -217,7 +211,7 @@ class ProjectCreate(BaseModel):
     project_longitude: float
     location_tolerance_km: float = 1.0
     gov_wallet: str
-    on_chain_id: Optional[str] = None  # Make it optional
+    on_chain_id: Optional[int] = None  # Changed to int for Mantle
 
 class MilestoneGenerate(BaseModel):
     project_description: str
@@ -238,14 +232,14 @@ class VerificationResponse(BaseModel):
 
 class CurrencyConversion(BaseModel):
     naira_amount: float
-    sui_amount: float
+    mnt_amount: float
     exchange_rate: float
     timestamp: str
 
 class ConvertRequest(BaseModel):
     amount: float
-    from_currency: str  # "NGN" or "SUI"
-    to_currency: str    # "NGN" or "SUI"
+    from_currency: str  # "NGN" or "MNT"
+    to_currency: str    # "NGN" or "MNT"
 
 class ManualMilestoneCreate(BaseModel):
     project_id: int
@@ -258,11 +252,11 @@ class DemoApprovalRequest(BaseModel):
     milestone_id: int
     bypass: bool = True
 
+# --- ENDPOINTS ---
+
 @app.post("/demo-approve-milestone")
 async def demo_approve_milestone(request: DemoApprovalRequest, db: Session = Depends(get_db)):
-    """
-    MODIFIED: Now raises strict errors if blockchain payment fails.
-    """
+    """MODIFIED: Now raises strict errors if blockchain payment fails."""
     try:
         project = db.query(Project).filter(Project.id == request.project_id).first()
         if not project:
@@ -273,26 +267,18 @@ async def demo_approve_milestone(request: DemoApprovalRequest, db: Session = Dep
             raise HTTPException(status_code=404, detail="Milestone not found")
             
         # 1. CRITICAL CHECK: Fail immediately if no blockchain ID
-        if not project.on_chain_id or str(project.on_chain_id).strip() == "":
+        if not project.on_chain_id:
             raise HTTPException(
                 status_code=400, 
-                detail=f"❌ FATAL: Project {project.id} is NOT on the blockchain. Missing 'on_chain_id'. Please create the project on SUI blockchain first using the SUI service."
+                detail=f"❌ FATAL: Project {project.id} is NOT on the blockchain. Missing 'on_chain_id'. Please create the project on Mantle blockchain first using the Mantle service."
             )
 
-        # Calculate amount
-        milestones = db.query(Milestone).filter(Milestone.project_id == project.id).all()
-        milestone_count = len(milestones) if milestones else 1
-        amount_sui = project.total_budget / milestone_count
-        payout_mist = int(amount_sui * 1_000_000_000)
-        
-        print(f"💰 ATTEMPTING PAYOUT: {amount_sui} SUI to project {project.on_chain_id}")
-
         # 2. EXECUTE TRANSACTION
-        sui_tx = await release_funds_sui(str(project.on_chain_id), payout_mist)
+        mantle_tx = await release_funds_mantle(int(project.on_chain_id), milestone.order_index)
         
-        # 3. VERIFY TRANSACTION: Fail if no digest returned
-        if not sui_tx:
-            raise HTTPException(status_code=500, detail="❌ BLOCKCHAIN ERROR: Transaction failed. Check backend terminal for 'SUI Payout Failed' logs.")
+        # 3. VERIFY TRANSACTION: Fail if no tx_hash returned
+        if not mantle_tx:
+            raise HTTPException(status_code=500, detail="❌ BLOCKCHAIN ERROR: Transaction failed. Check backend terminal for 'Mantle Payout Failed' logs.")
 
         # If we get here, it actually worked
         milestone.status = "verified"
@@ -302,7 +288,7 @@ async def demo_approve_milestone(request: DemoApprovalRequest, db: Session = Dep
         return {
             "success": True,
             "message": "Funds released successfully",
-            "sui_transaction": sui_tx,
+            "mantle_transaction": mantle_tx,
             "demo_mode": True
         }
             
@@ -358,14 +344,14 @@ async def create_test_data(db: Session = Depends(get_db)):
         test_project = Project(
             name="Lagos-Ibadan Highway Expansion",
             description="Major highway infrastructure project connecting Lagos and Ibadan",
-            total_budget=0.5,  # 0.5 ETH
+            total_budget=1000.0,  # 1000 MNT
             contractor_id=test_contractor.id,
             ai_generated=True,
             project_latitude=6.5244,
             project_longitude=3.3792,
             location_tolerance_km=1.0,
             gov_wallet="0xgov123",
-            on_chain_id="0xproject123"
+            on_chain_id=1  # Demo on-chain ID as integer
         )
         db.add(test_project)
         db.commit()
@@ -398,28 +384,28 @@ async def create_test_data(db: Session = Depends(get_db)):
 
 @app.post("/convert-currency")
 async def convert_currency(request: ConvertRequest):
-    """Convert between NGN and SUI"""
+    """Convert between NGN and MNT"""
     try:
-        rate = get_sui_ngn_rate()
+        rate = get_mnt_ngn_rate()
         
-        if request.from_currency.upper() == "NGN" and request.to_currency.upper() == "SUI":
-            converted_amount = convert_ngn_to_sui(request.amount)
+        if request.from_currency.upper() == "NGN" and request.to_currency.upper() == "MNT":
+            converted_amount = convert_ngn_to_mnt(request.amount)
             return CurrencyConversion(
                 naira_amount=request.amount,
-                sui_amount=converted_amount,
+                mnt_amount=converted_amount,
                 exchange_rate=rate,
                 timestamp=datetime.now().isoformat()
             )
-        elif request.from_currency.upper() == "SUI" and request.to_currency.upper() == "NGN":
-            converted_amount = convert_sui_to_ngn(request.amount)
+        elif request.from_currency.upper() == "MNT" and request.to_currency.upper() == "NGN":
+            converted_amount = convert_mnt_to_ngn(request.amount)
             return CurrencyConversion(
                 naira_amount=converted_amount,
-                sui_amount=request.amount,
+                mnt_amount=request.amount,
                 exchange_rate=rate,
                 timestamp=datetime.now().isoformat()
             )
         else:
-            raise HTTPException(status_code=400, detail="Only NGN<->SUI conversion supported")
+            raise HTTPException(status_code=400, detail="Only NGN<->MNT conversion supported")
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
@@ -427,7 +413,6 @@ async def convert_currency(request: ConvertRequest):
 @app.post("/generate-milestones")
 async def generate_milestones(request: MilestoneGenerate):
     try:
-        # Prompt explicitly mentions budget context
         prompt = f"""Generate 4-6 construction milestones for: {request.project_description}
 Budget: ${request.total_budget:,.2f}
 
@@ -457,27 +442,27 @@ async def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
             detail="Contractor not found. Please register first at /register endpoint."
         )
     
-    # Convert budget to SUI if provided in NGN
-    budget_sui = project.total_budget
+    # Convert budget to MNT if provided in NGN
+    budget_mnt = project.total_budget
     budget_ngn = project.total_budget
     
     if project.budget_currency.upper() == "NGN":
-        budget_sui = convert_ngn_to_sui(project.total_budget)
+        budget_mnt = convert_ngn_to_mnt(project.total_budget)
     else:
-        budget_ngn = convert_sui_to_ngn(project.total_budget)
+        budget_ngn = convert_mnt_to_ngn(project.total_budget)
     
     # CRITICAL FIX: Ensure on_chain_id is provided and not empty
-    if not project.on_chain_id or project.on_chain_id.strip() == "":
+    if not project.on_chain_id:
         # For demo purposes, generate a placeholder on_chain_id
-        import uuid
-        project.on_chain_id = f"demo_project_{uuid.uuid4().hex[:8]}"
+        import random
+        project.on_chain_id = random.randint(1000, 9999)
         print(f"⚠️ WARNING: No on_chain_id provided. Using demo ID: {project.on_chain_id}")
     
-    # Create project (store SUI amount for blockchain consistency)
+    # Create project (store MNT amount for blockchain consistency)
     db_project = Project(
         name=project.name,
         description=project.description,
-        total_budget=budget_sui,  # Store SUI amount
+        total_budget=budget_mnt,  # Store MNT amount
         contractor_id=contractor.id,
         ai_generated=project.use_ai_milestones,
         project_latitude=project.project_latitude,
@@ -500,9 +485,9 @@ async def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
     else:
         milestone_descriptions = project.manual_milestones or []
     
-    # Create milestone records (use SUI amount for milestones)
+    # Create milestone records (use MNT amount for milestones)
     if milestone_descriptions:
-        milestone_amount = budget_sui / len(milestone_descriptions)
+        milestone_amount = budget_mnt / len(milestone_descriptions)
         for i, desc in enumerate(milestone_descriptions):
             milestone = Milestone(
                 project_id=db_project.id,
@@ -516,9 +501,9 @@ async def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
     return {
         "project_id": db_project.id, 
         "milestones_created": len(milestone_descriptions),
-        "budget_sui": budget_sui,
+        "budget_mnt": budget_mnt,
         "budget_ngn": budget_ngn,
-        "exchange_rate": get_sui_ngn_rate()
+        "exchange_rate": get_mnt_ngn_rate()
     }
 
 @app.get("/projects")
@@ -528,14 +513,14 @@ async def get_all_projects(db: Session = Depends(get_db)):
     projects_with_currency = []
     for project in projects:
         # SAFEGUARD: Handle None budget
-        budget_sui = project.total_budget if project.total_budget is not None else 0.0
+        budget_mnt = project.total_budget if project.total_budget is not None else 0.0
 
         project_dict = {
             "id": project.id,
             "name": project.name,
             "description": project.description,
-            "total_budget_sui": budget_sui, # RETURN AS SUI
-            "total_budget_ngn": convert_sui_to_ngn(budget_sui), # Now safe
+            "total_budget_mnt": budget_mnt, # RETURN AS MNT
+            "total_budget_ngn": convert_mnt_to_ngn(budget_mnt), # Now safe
             "contractor_id": project.contractor_id,
             "ai_generated": project.ai_generated,
             "project_latitude": project.project_latitude,
@@ -549,7 +534,7 @@ async def get_all_projects(db: Session = Depends(get_db)):
 
     return {
         "projects": projects_with_currency,
-        "exchange_rate": get_sui_ngn_rate()
+        "exchange_rate": get_mnt_ngn_rate()
     }
 
 @app.get("/projects/{project_id}")
@@ -571,14 +556,14 @@ async def get_project(project_id: int, db: Session = Depends(get_db)):
         })
 
     # SAFEGUARD: Handle None budget
-    budget_sui = project.total_budget if project.total_budget is not None else 0.0
+    budget_mnt = project.total_budget if project.total_budget is not None else 0.0
 
     project_dict = {
         "id": project.id,
         "name": project.name,
         "description": project.description,
-        "total_budget_sui": budget_sui,
-        "total_budget_ngn": convert_sui_to_ngn(budget_sui), # Now safe
+        "total_budget_mnt": budget_mnt,
+        "total_budget_ngn": convert_mnt_to_ngn(budget_mnt),
         "contractor_id": project.contractor_id,
         "ai_generated": project.ai_generated,
         "project_latitude": project.project_latitude,
@@ -587,7 +572,7 @@ async def get_project(project_id: int, db: Session = Depends(get_db)):
         "gov_wallet": project.gov_wallet,
         "on_chain_id": project.on_chain_id,
         "created_at": project.created_at,
-        "exchange_rate": get_sui_ngn_rate(),
+        "exchange_rate": get_mnt_ngn_rate(),
         "milestones": milestone_list
     }
     return project_dict
@@ -615,43 +600,9 @@ async def update_project(project_id: int, project_update: ProjectUpdate, db: Ses
     db.refresh(project)
     return project
 
-@app.post("/fix-missing-on-chain-ids")
-async def fix_missing_on_chain_ids(db: Session = Depends(get_db)):
-    """Fix projects with missing on_chain_id values"""
-    import uuid
-    
-    try:
-        # Find projects with missing on_chain_id
-        projects = db.query(Project).filter(
-            (Project.on_chain_id == None) | 
-            (Project.on_chain_id == '') | 
-            (Project.on_chain_id == 'None')
-        ).all()
-        
-        if not projects:
-            return {"message": "All projects already have on_chain_id values", "fixed_count": 0}
-        
-        fixed_count = 0
-        for project in projects:
-            demo_id = f"demo_project_{uuid.uuid4().hex[:8]}"
-            project.on_chain_id = demo_id
-            fixed_count += 1
-            print(f"✅ Fixed Project {project.id} ({project.name}): {demo_id}")
-        
-        db.commit()
-        
-        return {
-            "message": f"Fixed {fixed_count} projects with missing on_chain_id",
-            "fixed_count": fixed_count
-        }
-        
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to fix projects: {str(e)}")
-
 @app.put("/projects/{project_id}/on-chain-id")
-async def update_project_on_chain_id(project_id: int, on_chain_id: str, db: Session = Depends(get_db)):
-    """Update only the on_chain_id field"""
+async def update_project_on_chain_id(project_id: int, on_chain_id: int, db: Session = Depends(get_db)):
+    """Update only the on_chain_id field (now as integer)"""
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -671,33 +622,6 @@ async def delete_project(project_id: int, db: Session = Depends(get_db)):
     db.delete(project)
     db.commit()
     return {"message": "Project deleted successfully"}
-
-def extract_video_location(video_path: str):
-    """Extract GPS coordinates from video metadata using ffprobe"""
-    try:
-        cmd = [
-            'ffprobe', '-v', 'quiet', '-print_format', 'json',
-            '-show_format', video_path
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        metadata = json_lib.loads(result.stdout)
-        tags = metadata.get('format', {}).get('tags', {})
-        
-        lat_keys = ['location-lat', 'GPS_LATITUDE', 'com.apple.quicktime.location.ISO6709']
-        lon_keys = ['location-lon', 'GPS_LONGITUDE', 'com.apple.quicktime.location.ISO6709']
-        
-        lat, lon = None, None
-        for key in lat_keys:
-            if key in tags:
-                lat = float(tags[key])
-                break
-        for key in lon_keys:
-            if key in tags:
-                lon = float(tags[key])
-                break
-        return lat, lon
-    except Exception:
-        return None, None
 
 @app.post("/verify-milestone", response_model=VerificationResponse)
 async def verify_milestone(request: VerificationRequest, wallet_address: str = Depends(verify_token), db: Session = Depends(get_db)):
@@ -742,21 +666,14 @@ Return ONLY a JSON object: {{"verified": boolean, "confidence_score": integer (0
         result = json.loads(response.text)
         
         if result["verified"] and result["confidence_score"] >= 95:
-            # Payout Logic - SUI PRIORITY
+            # Payout Logic - Mantle blockchain
             if hasattr(project, 'on_chain_id') and project.on_chain_id:
-                milestones = db.query(Milestone).filter(Milestone.project_id == project.id).all()
-                milestone_count = len(milestones) if milestones else 1
+                # Trigger Mantle contract
+                mantle_tx = await release_funds_mantle(int(project.on_chain_id), request.milestone_index)
                 
-                # Calculate SUI amount (Project.total_budget is now SUI)
-                amount_sui = project.total_budget / milestone_count
-                payout_mist = int(amount_sui * 1_000_000_000) # 1 SUI = 10^9 MIST
-                
-                print(f"💰 Releasing {amount_sui} SUI ({payout_mist} MIST) to contractor")
-                sui_tx = await release_funds_sui(str(project.on_chain_id), payout_mist)
-                
-                if sui_tx:
-                    result["sui_transaction"] = sui_tx
-                    result["primary_chain"] = "sui"
+                if mantle_tx:
+                    result["mantle_transaction"] = mantle_tx
+                    result["primary_chain"] = "mantle"
                     
                     # Update milestone status
                     ms = db.query(Milestone).filter(
@@ -768,9 +685,9 @@ Return ONLY a JSON object: {{"verified": boolean, "confidence_score": integer (0
                         ms.is_completed = True
                         db.commit()
                 else:
-                    result["error"] = "Sui transaction failed"
+                    result["error"] = "Mantle transaction failed"
             else:
-                result["error"] = "No on-chain ID found for SUI"
+                result["error"] = "No on-chain ID found for Mantle"
         
         return VerificationResponse(**result)
         
@@ -783,52 +700,47 @@ Return ONLY a JSON object: {{"verified": boolean, "confidence_score": integer (0
 
 @app.get("/")
 async def root():
-    return {"message": "Optic-Gov AI Oracle API (SUI Network)", "docs": "/docs", "health": "/health"}
+    return {"message": "Optic-Gov Mantle AI Oracle API", "docs": "/docs", "health": "/health"}
 
 @app.get("/health")
 async def health_check():
     return {"status": "AI Oracle is watching"}
 
-@app.get("/sui-rate")
-async def get_current_sui_rate():
-    """Get current SUI to NGN exchange rate"""
-    rate = get_sui_ngn_rate()
+@app.get("/mnt-rate")
+async def get_current_mnt_rate():
+    """Get current MNT to NGN exchange rate"""
+    rate = get_mnt_ngn_rate()
     return {
-        "sui_to_ngn_rate": rate,
+        "mnt_to_ngn_rate": rate,
         "timestamp": datetime.now().isoformat(),
-        "cache_age_seconds": time.time() - (sui_ngn_cache["timestamp"] or 0)
+        "cache_age_seconds": time.time() - (mnt_ngn_cache["timestamp"] or 0)
     }
-
-# Kept for backward compatibility if needed, but returns SUI rate now or could calculate ETH
-@app.get("/eth-rate")
-async def get_current_eth_rate():
-    return await get_current_sui_rate()
 
 @app.get("/exchange-rate")
 async def get_exchange_rate_frontend():
-    """Get current SUI to NGN exchange rate (frontend compatibility)"""
+    """Get current MNT to NGN exchange rate (frontend compatibility)"""
     try:
-        rate = get_sui_ngn_rate()
+        rate = get_mnt_ngn_rate()
         return {
-            "sui_to_ngn": rate,
-            "ngn_to_sui": 1 / rate if rate > 0 else 0,
+            "mnt_to_ngn": rate,
+            "ngn_to_mnt": 1 / rate if rate > 0 else 0,
             "timestamp": datetime.now().isoformat(),
-            "cached": time.time() - (sui_ngn_cache["timestamp"] or 0) < CACHE_DURATION
+            "cached": time.time() - (mnt_ngn_cache["timestamp"] or 0) < CACHE_DURATION
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get exchange rate: {str(e)}")
 
-@app.get("/convert/ngn-to-sui/{naira_amount}")
-async def convert_ngn_to_sui_endpoint(naira_amount: float):
-    """Quick convert NGN to SUI"""
-    rate = get_sui_ngn_rate()
+@app.get("/convert/ngn-to-mnt/{naira_amount}")
+async def convert_ngn_to_mnt_endpoint(naira_amount: float):
+    """Quick convert NGN to MNT"""
+    rate = get_mnt_ngn_rate()
     if rate == 0: return {"error": "Rate unavailable"}
-    sui_amount = naira_amount / rate
+    mnt_amount = naira_amount / rate
     return {
         "naira_amount": naira_amount,
-        "sui_amount": sui_amount,
+        "mnt_amount": mnt_amount,
         "exchange_rate": rate,
-        "formatted_sui": f"{sui_amount:.4f} SUI",
+        "formatted_mnt": f"{mnt_amount:.4f} MNT",
         "formatted_naira": f"₦{naira_amount:,.2f}"
     }
 
@@ -844,6 +756,7 @@ async def get_milestone(milestone_id: int, db: Session = Depends(get_db)):
         "project_id": milestone.project_id,
         "description": milestone.description,
         "amount": milestone.amount,
+        "amount_ngn": convert_mnt_to_ngn(milestone.amount),
         "status": milestone.status,
         "order_index": milestone.order_index,
         "criteria": f"Verify completion of: {milestone.description}",
@@ -858,14 +771,14 @@ async def create_manual_milestone(milestone: ManualMilestoneCreate, db: Session 
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Convert amount to SUI if needed (assuming amount is in NGN for now)
-    amount_sui = convert_ngn_to_sui(milestone.amount) if milestone.amount > 0 else milestone.amount
+    # Convert amount to MNT
+    amount_mnt = convert_ngn_to_mnt(milestone.amount) if milestone.amount > 0 else milestone.amount
 
     # Create milestone
     db_milestone = Milestone(
         project_id=milestone.project_id,
         description=milestone.description,
-        amount=amount_sui,
+        amount=amount_mnt,
         order_index=milestone.order_index,
         status="pending"
     )
@@ -878,7 +791,7 @@ async def create_manual_milestone(milestone: ManualMilestoneCreate, db: Session 
         "project_id": db_milestone.project_id,
         "description": db_milestone.description,
         "amount": db_milestone.amount,
-        "amount_ngn": convert_sui_to_ngn(db_milestone.amount),
+        "amount_ngn": convert_mnt_to_ngn(db_milestone.amount),
         "status": db_milestone.status,
         "order_index": db_milestone.order_index,
         "created_at": db_milestone.created_at
