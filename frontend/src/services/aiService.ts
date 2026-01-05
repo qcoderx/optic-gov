@@ -1,21 +1,25 @@
-// AI Service for Gemini 2.5 Flash Integration
+// aiService.ts
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || "http://localhost:8000";
+
+/**
+ * Matches the VerificationResponse model in main.py
+ */
 export interface VerificationResult {
   verified: boolean;
-  confidence: number;
+  confidence_score: number;
   reasoning: string;
-  detected_elements: string[];
-  compliance_score: number;
-  timestamp: string;
-  sui_transaction?: string;
-  ethereum_transaction?: string;
+  mantle_transaction?: string;  // The Hash
+  primary_chain?: string;       // To determine the URL base
+  error?: string;
 }
-
+/**
+ * Matches the VerificationRequest model in main.py
+ */
 export interface AIAnalysisRequest {
   video_url: string;
   milestone_criteria: string;
   project_id: number;
-  milestone_index: number;
-  on_chain_id?: string; // <--- FIX: Added field for SUI Object ID
+  milestone_index: number; // Backend uses this for ordering/payouts
 }
 
 export interface MilestoneGenerateRequest {
@@ -28,62 +32,68 @@ export interface MilestoneGenerateResponse {
 }
 
 class AIService {
-  private baseUrl = "https://optic-gov.onrender.com";
+  private baseUrl = API_BASE_URL;
 
-  async verifyMilestone(
-    request: AIAnalysisRequest
-  ): Promise<VerificationResult> {
-    try {
-      const response = await fetch(`${this.baseUrl}/verify-milestone`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(request),
-      });
+  /**
+   * Uploads evidence video to the backend
+   */
+  async uploadVideo(file: File, onProgress: (pct: number) => void): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const formData = new FormData();
+      formData.append("video", file);
 
-      if (!response.ok) {
-        throw new Error(`Verification failed: ${response.status}`);
-      }
+      // Track actual byte upload progress
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          // Scale 0-100% upload to 0-60% of UI progress bar
+          onProgress(Math.round(percent * 0.2));
+        }
+      };
 
-      return await response.json();
-    } catch (error) {
-      console.error("AI verification error:", error);
-      throw error;
-    }
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const res = JSON.parse(xhr.response);
+          resolve(res.video_url);
+        } else {
+          reject(new Error(`Upload failed: ${xhr.status}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+      xhr.open("POST", `${this.baseUrl}/upload-video`);
+      xhr.send(formData);
+    });
   }
 
-  async uploadVideo(file: File): Promise<string> {
-    const formData = new FormData();
-    formData.append("video", file);
-
-    const response = await fetch(`${this.baseUrl}/upload-video`, {
+  /**
+   * Calls the AI Oracle for verification
+   */
+  async verifyMilestone(request: AIAnalysisRequest): Promise<VerificationResult> {
+    const response = await fetch(`${this.baseUrl}/verify-milestone`, {
       method: "POST",
-      body: formData,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
     });
 
     if (!response.ok) {
-      throw new Error(`Upload failed: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "AI Oracle verification failed");
     }
 
-    const data = await response.json();
-    return data.video_url || data.url;
+    return await response.json();
   }
 
   async generateMilestones(request: MilestoneGenerateRequest): Promise<MilestoneGenerateResponse> {
     try {
       const response = await fetch(`${this.baseUrl}/generate-milestones`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request),
       });
 
-      if (!response.ok) {
-        throw new Error(`Milestone generation failed: ${response.status}`);
-      }
-
+      if (!response.ok) throw new Error(`Milestone generation failed`);
       return await response.json();
     } catch (error) {
       console.error("AI milestone generation error:", error);
@@ -93,54 +103,3 @@ class AIService {
 }
 
 export const aiService = new AIService();
-
-// Real-time milestone verification
-export async function verifyMilestoneWithBackend(
-  request: AIAnalysisRequest
-): Promise<VerificationResult> {
-  try {
-    // Submit evidence to Mantle blockchain first
-    try {
-      const { mantleService } = await import("./mantleService");
-
-      if (!request.on_chain_id) {
-        console.warn("⚠️ Warning: No on_chain_id provided. Skipping blockchain evidence submission.");
-      } else {
-        await mantleService.submitEvidence(
-          Number(request.on_chain_id),
-          request.milestone_index,
-          request.video_url
-        );
-        console.log("✅ Evidence submitted to Mantle blockchain");
-      }
-    } catch (mantleError) {
-      console.error(
-        "❌ Failed to submit evidence to blockchain:",
-        mantleError
-      );
-      throw new Error("Must submit evidence on-chain before verification");
-    }
-
-    // Now call backend verification
-    const response = await fetch(
-      "https://optic-gov.onrender.com/verify-milestone",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(request),
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Verification failed: HTTP ${response.status}`);
-    }
-
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.error("Real-time verification failed:", error);
-    throw error;
-  }
-}

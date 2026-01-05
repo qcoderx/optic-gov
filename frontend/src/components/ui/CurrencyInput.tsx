@@ -1,15 +1,13 @@
-// frontend/src/components/ui/CurrencyInput.tsx
-
-import React, { useState, useEffect } from 'react';
-import { currencyService } from '../../services/currencyService';
+import React, { useState, useEffect, useCallback } from 'react';
+import { currencyService } from '@/services/currencyService';
+import { Icon } from '@/components/ui/Icon';
+import debounce from 'lodash/debounce';
 
 interface CurrencyInputProps {
   value: number;
   onChange: (value: number, currency: 'NGN' | 'MNT') => void;
   currency: 'NGN' | 'MNT';
   onCurrencyChange: (currency: 'NGN' | 'MNT') => void;
-  placeholder?: string;
-  className?: string;
 }
 
 export const CurrencyInput: React.FC<CurrencyInputProps> = ({
@@ -17,89 +15,62 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   onChange,
   currency,
   onCurrencyChange,
-  placeholder,
-  className = ''
 }) => {
-  const [convertedValue, setConvertedValue] = useState<number | null>(null);
+  const [mntValue, setMntValue] = useState<number>(0);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const convert = async () => {
-      if (!value || value <= 0) {
-        setConvertedValue(null);
+  const convert = useCallback(
+    debounce(async (val: number, curr: 'NGN' | 'MNT') => {
+      if (!val || val <= 0) {
+        setMntValue(0);
         return;
       }
-
       setLoading(true);
       try {
-        if (currency === 'NGN') {
-          // Convert NGN -> MNT
-          const mnt = await currencyService.quickConvertNgnToSui(value);
-          setConvertedValue(mnt);
+        if (curr === 'NGN') {
+          // Use the MNT function explicitly
+          const result = await currencyService.quickConvertNgnToMnt(val);
+          setMntValue(result);
         } else {
-          // Convert MNT -> NGN
-          const ngn = await currencyService.quickConvertSuiToNgn(value);
-          setConvertedValue(ngn);
+          setMntValue(val);
         }
       } catch (error) {
-        console.error('Conversion failed:', error);
-        setConvertedValue(null);
+        console.error("Conversion failed:", error);
       } finally {
         setLoading(false);
       }
-    };
+    }, 500),
+    []
+  );
 
-    const debounce = setTimeout(convert, 500);
-    return () => clearTimeout(debounce);
-  }, [value, currency]);
-
-  const handleCurrencyToggle = () => {
-    const newCurrency = currency === 'NGN' ? 'MNT' : 'NGN';
-    onCurrencyChange(newCurrency);
-    
-    // If we have a converted value, switch the input to that value for smooth UX
-    if (convertedValue && convertedValue > 0) {
-      onChange(convertedValue, newCurrency);
-    }
-  };
+  useEffect(() => {
+    convert(value, currency);
+  }, [value, currency, convert]);
 
   return (
-    <div className={className}>
-      <div className="relative">
+    <div className="relative flex flex-col gap-2">
+      <div className="flex bg-[#29382f] rounded-xl overflow-hidden h-14 border border-transparent focus-within:border-[#38e07b] transition-all">
         <input
           type="number"
+          className="flex-1 bg-transparent border-none text-white px-4 outline-none font-medium"
           value={value || ''}
-          onChange={(e) => {
-            const newValue = parseFloat(e.target.value) || 0;
-            onChange(newValue, currency);
-          }}
-          placeholder={placeholder}
-          className="w-full bg-[#29382f] border-none rounded-xl text-white placeholder:text-[#9eb7a8] h-14 pl-4 pr-20 focus:ring-2 focus:ring-[#38e07b] focus:ring-opacity-50 transition-all font-medium"
-          step={currency === 'MNT' ? '0.000001' : '1'}
-          min="0"
+          onChange={(e) => onChange(Number(e.target.value), currency)}
+          placeholder="0.00"
         />
-        <button
-          type="button"
-          onClick={handleCurrencyToggle}
-          className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#38e07b]/20 hover:bg-[#38e07b]/30 text-[#38e07b] px-3 py-1 rounded-lg text-sm font-bold transition-colors"
+        <select 
+          className="bg-[#1a211e] text-[#38e07b] font-bold px-4 outline-none border-l border-[#29382f] cursor-pointer"
+          value={currency}
+          onChange={(e) => onCurrencyChange(e.target.value as 'NGN' | 'MNT')}
         >
-          {currency}
-        </button>
+          <option value="NGN">NGN</option>
+          <option value="MNT">MNT</option>
+        </select>
       </div>
-      {convertedValue !== null && !loading && (
-        <div className="mt-2 text-sm text-[#9eb7a8] flex items-center gap-2">
-          <span>≈</span>
-          <span>
-            {currency === 'NGN' 
-              ? currencyService.formatSui(convertedValue)
-              : currencyService.formatNaira(convertedValue)
-            }
-          </span>
-        </div>
-      )}
-      {loading && (
-        <div className="mt-2 text-sm text-[#9eb7a8]">
-          Converting...
+      
+      {currency === 'NGN' && (
+        <div className="flex items-center gap-2 px-2 text-xs text-[#9eb7a8]">
+          <Icon name="swap_horiz" size="sm" className={loading ? "animate-spin" : ""} />
+          <span>Approx. {mntValue.toFixed(4)} MNT</span>
         </div>
       )}
     </div>

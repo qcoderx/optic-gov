@@ -6,6 +6,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': '/src',
+      process: 'process/browser',
+      util: 'util',
     },
+  },
+  define: {
+    global: 'globalThis',
   },
 })

@@ -100,7 +100,7 @@ export const ConnectionStatus = ({
                 className={getStatusColor(suiStatus)} 
               />
             </motion.div>
-            <span className="text-white">SUI:</span>
+            <span className="text-white">MNT:</span>
             <span className={getStatusColor(suiStatus)}>
               {suiStatus.charAt(0).toUpperCase() + suiStatus.slice(1)}
             </span>

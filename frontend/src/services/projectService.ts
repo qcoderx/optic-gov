@@ -6,6 +6,7 @@ import type {
   ProjectsResponse,
   ProjectCreateRequest,
 } from "@/types/project";
+import { abort } from "process";
 
 class ProjectService {
   async getAllProjects(): Promise<ProjectsResponse> {
@@ -58,6 +59,7 @@ class ProjectService {
 
   async createProject(project: ProjectCreateRequest): Promise<any> {
     try {
+      // 1. Prepare data for Backend
       const projectData = {
         ...project,
         budget_currency: project.budget_currency || "NGN",
@@ -65,66 +67,55 @@ class ProjectService {
 
       const response = await fetch(`${API_BASE_URL}/create-project`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(projectData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorData}`);
-      }
-
+      if (!response.ok) throw new Error(`HTTP ${response.status}: Failed to create in DB`);
       const result = await response.json();
 
-      // Create on Mantle blockchain
+      // 2. Blockchain Creation
       try {
         const { mantleService } = await import("./mantleService");
-        const { walletService } = await import("./walletService");
+        const { ethers } = await import("ethers");
 
-        const walletAddress = walletService.getAddress();
-        if (!walletAddress) {
-          console.warn("No wallet connected for Mantle creation");
-          return result;
-        }
+        // ENSURE WE HAVE AT LEAST ONE MILESTONE (Prevents Solidity Revert)
+        const descriptions = project.manual_milestones?.length 
+          ? project.manual_milestones 
+          : ["Project Commencement & Initial Setup"];
 
-        const milestones = result.milestones_created || project.manual_milestones?.length || 1;
-        const milestoneAmountMNT = (project.total_budget / milestones).toString();
-        const milestoneAmountWei = (parseFloat(milestoneAmountMNT) * 1e18).toString();
+        const count = descriptions.length;
         
-        const milestoneAmounts = Array(milestones).fill(milestoneAmountWei);
-        const milestoneDescriptions = project.manual_milestones || Array(milestones).fill("Milestone");
+        // MATH FIX: Calculate exactly to avoid floating point trash in Wei
+        const amountPerMilestone = project.total_budget / count;
+        const milestoneWei = ethers.parseEther(amountPerMilestone.toFixed(18));
+        
+        // Sum the Wei precisely to ensure totalValue matches exactly
+        const totalValueWei = milestoneWei * BigInt(count);
+        const milestoneAmounts = Array(count).fill(milestoneWei.toString());
 
         const { projectId, txHash } = await mantleService.createProject(
           project.contractor_wallet,
           milestoneAmounts,
-          milestoneDescriptions,
-          project.total_budget.toString()
+          descriptions,
+          totalValueWei.toString()
         );
 
-        console.log('Mantle Project Created - ID:', projectId, 'TX:', txHash);
-
-        const updateResponse = await fetch(`${API_BASE_URL}/projects/${result.project_id}/on-chain-id?on_chain_id=${projectId}`, {
+        // 3. Update DB with On-Chain ID
+        await fetch(`${API_BASE_URL}/projects/${result.project_id}/on-chain-id?on_chain_id=${projectId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
         });
-        
-        if (!updateResponse.ok) {
-          console.error('Failed to update on_chain_id in database');
-        } else {
-          console.log('on_chain_id saved to database');
-        }
-        
+
         result.on_chain_id = projectId;
         result.tx_hash = txHash;
       } catch (mantleError) {
-        console.error("Mantle blockchain creation failed:", mantleError);
+        console.error("Mantle Error:", mantleError);
+        // Alert user if DB worked but Blockchain failed
       }
-
       return result;
     } catch (error) {
-      console.error("ProjectService.createProject error:", error);
+      console.error("ProjectService Error:", error);
       throw error;
     }
   }
@@ -216,37 +207,16 @@ class ProjectService {
   }
 
   // Transform backend project to frontend format
-  transformProject(backendProject: any): Project {
+  private transformProject(data: any): Project {
     return {
-      id: backendProject.id,
-      title: backendProject.name || `Project #${backendProject.id}`,
-      name: backendProject.name,
-      description: backendProject.description,
-      location: `Lat: ${backendProject.project_latitude?.toFixed(
-        4
-      )}, Lng: ${backendProject.project_longitude?.toFixed(4)}`,
-      status: "pending", // Default status, can be enhanced based on milestones
-      budget:
-        backendProject.total_budget_mnt || backendProject.total_budget_eth || 0,
-      total_budget_mnt:
-        backendProject.total_budget_mnt || backendProject.total_budget_eth,
-      total_budget_ngn: backendProject.total_budget_ngn,
-      budget_currency: "NGN", // Default to NGN for Nigerian government
-      coordinates:
-        backendProject.project_latitude && backendProject.project_longitude
-          ? {
-              lat: backendProject.project_latitude,
-              lng: backendProject.project_longitude,
-            }
-          : undefined,
-      project_latitude: backendProject.project_latitude,
-      project_longitude: backendProject.project_longitude,
-      contractor_id: backendProject.contractor_id,
-      ai_generated: backendProject.ai_generated,
-      gov_wallet: backendProject.gov_wallet,
-      on_chain_id: backendProject.on_chain_id,
-      created_at: backendProject.created_at,
-      exchange_rate: backendProject.exchange_rate,
+      ...data, // This preserves all raw fields like 'budget' and 'total_budget_ngn'
+      id: data.id,
+      name: data.name || data.title,
+      description: data.description,
+      // Add these explicitly just in case
+      total_budget_mnt: data.budget || data.total_budget_mnt,
+      total_budget_ngn: data.total_budget_ngn,
+      milestones: data.milestones || []
     };
   }
 }

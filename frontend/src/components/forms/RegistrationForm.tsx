@@ -55,7 +55,7 @@ export const RegistrationForm = () => {
     e.preventDefault();
     
     try {
-      const response = await fetch('https://optic-gov.onrender.com/register', {
+      const response = await fetch('http://localhost:8000/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

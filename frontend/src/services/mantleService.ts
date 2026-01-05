@@ -68,9 +68,9 @@ class MantleService {
 
   async createProject(
     contractorAddress: string,
-    milestoneAmounts: string[],
+    milestoneAmounts: string[], // These are already in Wei from projectService
     milestoneDescriptions: string[],
-    totalBudgetMNT: string
+    totalBudgetWei: string      // Changed from totalBudgetMNT to totalBudgetWei
   ): Promise<{ projectId: number; txHash: string }> {
     if (!window.ethereum) {
       throw new Error('MetaMask not installed');
@@ -80,17 +80,26 @@ class MantleService {
     const signer = await provider.getSigner();
     const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
-    const totalBudgetWei = ethers.parseEther(totalBudgetMNT);
-    
+    console.log("Mantle Transaction Payload:", {
+      contractorAddress,
+      milestoneAmounts,
+      milestoneDescriptions,
+      value: totalBudgetWei
+    });
+
+    // We use the Wei string directly to avoid floating point errors
     const tx = await contract.createProject(
       contractorAddress,
       milestoneAmounts,
       milestoneDescriptions,
-      { value: totalBudgetWei }
+      { value: totalBudgetWei } 
     );
 
     const receipt = await tx.wait();
     
+    // Safety check: ensure logs exist
+    if (!receipt || !receipt.logs) throw new Error("Transaction failed - no logs");
+
     const event = receipt.logs
       .map((log: any) => {
         try {

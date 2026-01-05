@@ -2,29 +2,29 @@ const API_BASE_URL =
   (import.meta as any).env?.VITE_API_URL || "http://localhost:8000";
 
 export interface ExchangeRateResponse {
-  sui_to_ngn: number;
-  ngn_to_sui: number;
+  mnt_to_ngn: number;
+  ngn_to_mnt: number;
   timestamp: string;
   cached: boolean;
 }
 
-export interface SuiRateResponse {
-  sui_to_ngn_rate: number;
+export interface MntRateResponse {
+  mnt_to_ngn_rate: number;
   timestamp: string;
   cache_age_seconds: number;
 }
 
 export interface EthRateResponse {
-  sui_to_ngn_rate: number;
+  eth_to_ngn_rate: number;
   timestamp: string;
   cache_age_seconds: number;
 }
 
-export interface ConvertNgnToSuiResponse {
+export interface ConvertNgnToMntResponse {
   naira_amount: number;
-  sui_amount: number;
+  mnt_amount: number;
   exchange_rate: number;
-  formatted_sui: string;
+  formatted_mnt: string;
   formatted_naira: string;
 }
 
@@ -46,9 +46,9 @@ class ExchangeService {
     }
   }
 
-  async getSuiRate(): Promise<SuiRateResponse> {
+  async getMntRate(): Promise<MntRateResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/sui-rate`);
+      const response = await fetch(`${API_BASE_URL}/mnt-rate`);
 
       if (!response.ok) {
         const errorData = await response.text();
@@ -58,7 +58,7 @@ class ExchangeService {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error("ExchangeService.getSuiRate error:", error);
+      console.error("ExchangeService.getMntRate error:", error);
       throw error;
     }
   }
@@ -80,10 +80,10 @@ class ExchangeService {
     }
   }
 
-  async convertNgnToSui(nairaAmount: number): Promise<ConvertNgnToSuiResponse> {
+  async convertNgnToMnt(nairaAmount: number): Promise<ConvertNgnToMntResponse> {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/convert/ngn-to-sui/${nairaAmount}`
+        `${API_BASE_URL}/convert/ngn-to-mnt/${nairaAmount}`
       );
 
       if (!response.ok) {
@@ -94,7 +94,7 @@ class ExchangeService {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error("ExchangeService.convertNgnToSui error:", error);
+      console.error("ExchangeService.convertNgnToMnt error:", error);
       throw error;
     }
   }
