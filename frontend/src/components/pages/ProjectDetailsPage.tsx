@@ -112,9 +112,9 @@ export const ProjectDetailsPage = () => {
   const totalMilestones = milestones.length || 1;
   const progressPercentage = Math.round((completedMilestones / totalMilestones) * 100);
   
-  // Calculate SUI amounts
-  const totalSUI = project.total_budget_sui || project.budget || 0;
-  const releasedSUI = (totalSUI * progressPercentage) / 100;
+  // Calculate MNT amounts
+  const totalMNT = project.total_budget_mnt || project.budget || 0;
+  const releasedMNT = (totalMNT * progressPercentage) / 100;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -216,17 +216,17 @@ export const ProjectDetailsPage = () => {
           </div>
           <div className="flex flex-col gap-2 rounded-xl p-6 bg-[#1c2620] border border-[#29382f]">
             <div className="flex items-center justify-between">
-              <p className="text-[#9cbaa6] text-sm font-medium uppercase tracking-wider">SUI Locked</p>
+              <p className="text-[#9cbaa6] text-sm font-medium uppercase tracking-wider">MNT Locked</p>
               <Icon name="lock" className="text-[#9cbaa6]" />
             </div>
-            <p className="text-white text-2xl font-bold">{totalSUI.toFixed(2)} SUI</p>
+            <p className="text-white text-2xl font-bold">{totalMNT.toFixed(2)} MNT</p>
           </div>
           <div className="flex flex-col gap-2 rounded-xl p-6 bg-[#1c2620] border border-[#29382f]">
             <div className="flex items-center justify-between">
-              <p className="text-[#9cbaa6] text-sm font-medium uppercase tracking-wider">SUI Released</p>
+              <p className="text-[#9cbaa6] text-sm font-medium uppercase tracking-wider">MNT Released</p>
               <Icon name="lock_open" className="text-[#38e07b]" />
             </div>
-            <p className="text-[#38e07b] text-2xl font-bold">{releasedSUI.toFixed(2)} SUI</p>
+            <p className="text-[#38e07b] text-2xl font-bold">{releasedMNT.toFixed(2)} MNT</p>
           </div>
           <div className="flex flex-col gap-2 rounded-xl p-6 bg-[#1c2620] border border-[#29382f]">
             <div className="flex items-center justify-between">

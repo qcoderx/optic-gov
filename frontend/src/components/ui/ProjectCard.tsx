@@ -69,7 +69,7 @@ export const ProjectCard = ({ project, isSelected, onClick }: ProjectCardProps) 
           <span className="text-gray-500 uppercase text-[10px] font-bold">Budget</span>
           <div className={`font-mono ${isSelected ? 'text-white' : 'text-gray-300'}`}>
             <CurrencyDisplay 
-              ethAmount={project.total_budget_sui || project.budget || 0}
+              ethAmount={project.total_budget_mnt || project.budget || 0}
               nairaAmount={project.total_budget_ngn}
               showBoth={true}
               className="text-xs"

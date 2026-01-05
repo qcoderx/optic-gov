@@ -227,9 +227,9 @@ class ProjectService {
       )}, Lng: ${backendProject.project_longitude?.toFixed(4)}`,
       status: "pending", // Default status, can be enhanced based on milestones
       budget:
-        backendProject.total_budget_sui || backendProject.total_budget_eth || 0,
-      total_budget_sui:
-        backendProject.total_budget_sui || backendProject.total_budget_eth,
+        backendProject.total_budget_mnt || backendProject.total_budget_eth || 0,
+      total_budget_mnt:
+        backendProject.total_budget_mnt || backendProject.total_budget_eth,
       total_budget_ngn: backendProject.total_budget_ngn,
       budget_currency: "NGN", // Default to NGN for Nigerian government
       coordinates:

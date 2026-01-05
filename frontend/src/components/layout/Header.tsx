@@ -9,7 +9,7 @@ const navigation = [
 ];
 
 export const Header = () => {
-  const { address, isConnected } = useWallet();
+  const { address, isConnected, connect } = useWallet();
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -82,7 +82,7 @@ export const Header = () => {
               </div>
             ) : (
               <button 
-                onClick={() => window.ethereum?.request({ method: 'eth_requestAccounts' })}
+                onClick={connect}
                 className="bg-[#38e07b] hover:bg-[#22c565] text-[#111814] font-bold px-6 py-2 rounded-full"
               >
                 Connect Wallet
