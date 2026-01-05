@@ -79,7 +79,7 @@ export const RegisterPage = () => {
           >
             <Icon name="lock" className="text-text-secondary text-sm" />
             <span className="text-xs text-text-secondary font-medium tracking-wide">
-              SECURED WITH SUI
+              SECURED WITH MANTLE
             </span>
           </motion.div>
         </div>

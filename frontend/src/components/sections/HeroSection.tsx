@@ -9,7 +9,7 @@ const mockVerificationData = {
   target: 'Bridge Foundation - Sector 4',
   matchPercentage: 92,
   txHash: '0x71C...92F',
-  suiReleased: 15.4,
+  mntReleased: 15.4,
   imageUrl: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=300&fit=crop&q=80',
   backgroundUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&h=600&fit=crop&q=80',
 };
@@ -33,7 +33,7 @@ export const HeroSection = () => {
             transition={{ duration: 0.8 }}
           >
             <StatusBadge variant="live">
-              Now Live on Sepolia Testnet
+              Now Live on Mantle Sepolia
             </StatusBadge>
 
             <h1 className="text-white text-5xl md:text-6xl font-black leading-tight tracking-tight">
@@ -149,7 +149,7 @@ export const HeroSection = () => {
                         Verification Successful
                       </p>
                       <p className="text-[10px] text-gray-400 font-mono">
-                        TxHash: {mockVerificationData.txHash} • {mockVerificationData.suiReleased} SUI Released
+                        TxHash: {mockVerificationData.txHash} • {mockVerificationData.mntReleased} MNT Released
                       </p>
                     </div>
                   </div>

@@ -74,14 +74,14 @@ export const MilestoneVerificationPage = () => {
       const result = await response.json();
       
       console.log('🔗 Full Response:', result);
-      console.log('🔗 Transaction Digest:', result.sui_transaction);
+      console.log('🔗 Transaction Hash:', result.ethereum_transaction);
       
       setNotification({
         show: true,
         type: 'success',
         title: '✅ Demo Approval Successful!',
-        message: `Milestone approved and funds released. Transaction: ${result.sui_transaction || 'Pending'}`,
-        txHash: result.sui_transaction
+        message: `Milestone approved and funds released. Transaction: ${result.ethereum_transaction || 'Pending'}`,
+        txHash: result.ethereum_transaction
       });
       
       // Don't auto-redirect, let user close notification manually
@@ -201,8 +201,8 @@ export const MilestoneVerificationPage = () => {
           >
             <p className="text-gray-400 text-sm uppercase tracking-wider mb-4">Funds Locked in Smart Contract</p>
             <div className="space-y-2">
-              <div className="text-6xl font-bold text-white">{project?.total_budget_SUI?.toFixed(2) || '0.00'}</div>
-              <div className="text-[#0df20d] text-xl font-bold">SUI</div>
+              <div className="text-6xl font-bold text-white">{project?.total_budget_MNT?.toFixed(2) || '0.00'}</div>
+              <div className="text-[#0df20d] text-xl font-bold">MNT</div>
               <div className="text-gray-400">≈ ₦{project?.total_budget_ngn?.toLocaleString() || '0'}</div>
             </div>
           </motion.div>
@@ -228,7 +228,7 @@ export const MilestoneVerificationPage = () => {
             </div>
             <div className="flex justify-between text-sm text-gray-400">
               <span>Contract #{project?.on_chain_id || 'Loading...'}</span>
-              <a href="#" className="text-[#0df20d] hover:underline">View on SUIerscan</a>
+              <a href="#" className="text-[#0df20d] hover:underline">View on Mantle Explorer</a>
             </div>
           </motion.div>
 
@@ -327,7 +327,7 @@ export const MilestoneVerificationPage = () => {
         title={notification.title}
         message={notification.message}
         txHash={notification.txHash}
-        explorerUrl={notification.txHash ? `https://suiexplorer.com/txblock/${notification.txHash}?network=testnet` : undefined}
+        explorerUrl={notification.txHash ? `https://explorer.sepolia.mantle.xyz/tx/${notification.txHash}` : undefined}
         onClose={() => setNotification({ ...notification, show: false })}
       />
 
@@ -338,7 +338,7 @@ export const MilestoneVerificationPage = () => {
             <span className="text-gray-400">Powered by</span>
             <div className="flex items-center gap-2">
               <Icon name="currency_bitcoin" className="text-[#0df20d]" />
-              <span className="font-bold">SUIereum</span>
+              <span className="font-bold">Mantle L2</span>
             </div>
             <span className="text-gray-400">&</span>
             <div className="flex items-center gap-2">

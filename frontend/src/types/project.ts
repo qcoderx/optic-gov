@@ -6,9 +6,9 @@ export interface Project {
   location?: string;
   status: 'pending' | 'in-progress' | 'completed';
   budget: number;
-  total_budget_sui?: number;
+  total_budget_mnt?: number;
   total_budget_ngn?: number;
-  budget_currency?: 'NGN' | 'SUI';
+  budget_currency?: 'NGN' | 'MNT';
   progress?: number;
   aiConfidence?: number;
   votes?: number;
@@ -21,8 +21,8 @@ export interface Project {
   contractor_id?: number;
   ai_generated?: boolean;
   gov_wallet?: string;
-  on_chain_id?: string; // CRITICAL: Sui Object IDs are hex strings, not numbers
-  contractor_wallet?: string; // Sui address for contractor payouts
+  on_chain_id?: string; // Mantle blockchain project ID
+  contractor_wallet?: string; // Ethereum address for contractor payouts
   created_at?: string;
   exchange_rate?: number;
   // ADD THIS FIELD
@@ -51,15 +51,15 @@ export interface ProjectCreateRequest {
   name: string;
   description: string;
   total_budget: number;
-  budget_currency: 'NGN' | 'SUI';
-  contractor_wallet: string; // MUST be valid Sui address
+  budget_currency: 'NGN' | 'MNT';
+  contractor_wallet: string; // MUST be valid Ethereum address
   use_ai_milestones: boolean;
   manual_milestones?: string[];
   project_latitude: number;
   project_longitude: number;
   location_tolerance_km?: number;
   gov_wallet: string;
-  on_chain_id: string; // CRITICAL: Sui Object IDs are hex strings
+  on_chain_id: string; // Mantle blockchain project ID
 }
 
 export interface MapState {

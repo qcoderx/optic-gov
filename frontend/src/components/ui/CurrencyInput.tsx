@@ -5,9 +5,9 @@ import { currencyService } from '../../services/currencyService';
 
 interface CurrencyInputProps {
   value: number;
-  onChange: (value: number, currency: 'NGN' | 'SUI') => void;
-  currency: 'NGN' | 'SUI';
-  onCurrencyChange: (currency: 'NGN' | 'SUI') => void;
+  onChange: (value: number, currency: 'NGN' | 'MNT') => void;
+  currency: 'NGN' | 'MNT';
+  onCurrencyChange: (currency: 'NGN' | 'MNT') => void;
   placeholder?: string;
   className?: string;
 }
@@ -33,11 +33,11 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
       setLoading(true);
       try {
         if (currency === 'NGN') {
-          // Convert NGN -> SUI
-          const sui = await currencyService.quickConvertNgnToSui(value);
-          setConvertedValue(sui);
+          // Convert NGN -> MNT
+          const mnt = await currencyService.quickConvertNgnToSui(value);
+          setConvertedValue(mnt);
         } else {
-          // Convert SUI -> NGN
+          // Convert MNT -> NGN
           const ngn = await currencyService.quickConvertSuiToNgn(value);
           setConvertedValue(ngn);
         }
@@ -54,7 +54,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   }, [value, currency]);
 
   const handleCurrencyToggle = () => {
-    const newCurrency = currency === 'NGN' ? 'SUI' : 'NGN';
+    const newCurrency = currency === 'NGN' ? 'MNT' : 'NGN';
     onCurrencyChange(newCurrency);
     
     // If we have a converted value, switch the input to that value for smooth UX
@@ -75,7 +75,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
           }}
           placeholder={placeholder}
           className="w-full bg-[#29382f] border-none rounded-xl text-white placeholder:text-[#9eb7a8] h-14 pl-4 pr-20 focus:ring-2 focus:ring-[#38e07b] focus:ring-opacity-50 transition-all font-medium"
-          step={currency === 'SUI' ? '0.000001' : '1'}
+          step={currency === 'MNT' ? '0.000001' : '1'}
           min="0"
         />
         <button

@@ -13,7 +13,7 @@ export const GovernorDashboardPage = () => {
   const [projectName, setProjectName] = useState("");
   const [contractorAddress, setContractorAddress] = useState("");
   const [budget, setBudget] = useState(0);
-  const [budgetCurrency, setBudgetCurrency] = useState<"NGN" | "SUI">("NGN");
+  const [budgetCurrency, setBudgetCurrency] = useState<"NGN" | "MNT">("NGN");
   
   // Milestone State
   const [useAiMilestones, setUseAiMilestones] = useState(true);
@@ -79,7 +79,7 @@ export const GovernorDashboardPage = () => {
         project_longitude: projectLocation.lng,
         location_tolerance_km: 1.0,
         gov_wallet: "0x12...89",
-        // Generate a demo on_chain_id for testing - will be replaced by actual SUI ID
+        // Generate a demo on_chain_id for testing - will be replaced by actual Mantle ID
         on_chain_id: `demo_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`,
       };
 
@@ -278,7 +278,7 @@ export const GovernorDashboardPage = () => {
                   <h4 className="text-white font-bold text-lg mb-4">Contract Summary</h4>
                   <div className="space-y-3 mb-6">
                      <div className="flex justify-between text-sm"><span className="text-[#9eb7a8]">Milestones</span> <span className="text-white">{useAiMilestones ? "Auto-Generated (~4-6)" : `${manualMilestones.filter(m => m).length} defined`}</span></div>
-                     <div className="flex justify-between text-sm"><span className="text-[#9eb7a8]">Network</span> <span className="text-[#38e07b]">Sui Mainnet</span></div>
+                     <div className="flex justify-between text-sm"><span className="text-[#9eb7a8]">Network</span> <span className="text-[#38e07b]">Mantle Sepolia</span></div>
                   </div>
                   
                   <div className="flex justify-between items-end mb-4">
