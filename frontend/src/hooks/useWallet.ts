@@ -29,11 +29,14 @@ export const useWallet = () => {
 
   const connect = async () => {
     try {
+      console.log('Attempting to connect wallet...');
       const addr = await walletService.connectWallet();
+      console.log('Wallet connected:', addr);
       setAddress(addr);
       setIsConnected(true);
     } catch (error) {
       console.error('Wallet connection failed:', error);
+      alert(error instanceof Error ? error.message : 'Failed to connect wallet. Please make sure MetaMask is installed.');
       throw error;
     }
   };

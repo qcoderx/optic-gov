@@ -16,10 +16,10 @@ interface LocalProject {
 }
 
 const defaultProjects: LocalProject[] = [
-  { id: '1', name: 'Third Mainland Bridge Repair', status: 'completed', budget: '500 SUI', location: 'Lagos Island', completion: 100 },
-  { id: '2', name: 'Abuja-Kaduna Expressway', status: 'in-progress', budget: '1,200 SUI', location: 'FCT Abuja', completion: 45 },
-  { id: '3', name: 'Lagos Blue Line Rail', status: 'pending', budget: '3,500 SUI', location: 'Victoria Island', completion: 0 },
-  { id: '4', name: 'Port Harcourt Refinery', status: 'completed', budget: '800 SUI', location: 'Rivers State', completion: 100 },
+  { id: '1', name: 'Third Mainland Bridge Repair', status: 'completed', budget: '500 MNT', location: 'Lagos Island', completion: 100 },
+  { id: '2', name: 'Abuja-Kaduna Expressway', status: 'in-progress', budget: '1,200 MNT', location: 'FCT Abuja', completion: 45 },
+  { id: '3', name: 'Lagos Blue Line Rail', status: 'pending', budget: '3,500 MNT', location: 'Victoria Island', completion: 0 },
+  { id: '4', name: 'Port Harcourt Refinery', status: 'completed', budget: '800 MNT', location: 'Rivers State', completion: 100 },
 ];
 
 export const TransparencyMapPage = () => {
@@ -139,7 +139,7 @@ export const TransparencyMapPage = () => {
                       id: `search-${Date.now()}`,
                       name: projectTitle,
                       status: Math.random() > 0.5 ? 'pending' : 'in-progress',
-                      budget: `${Math.floor(Math.random() * 2000 + 500)} SUI`,
+                      budget: `${Math.floor(Math.random() * 2000 + 500)} MNT`,
                       location: projectTitle.split(' ').slice(0, -2).join(' '),
                       completion: Math.floor(Math.random() * 100),
                       place: {
@@ -209,7 +209,7 @@ export const TransparencyMapPage = () => {
                   <div className="flex justify-between items-center text-xs">
                       <div className="flex flex-col">
                       <span className="text-gray-500 uppercase text-[10px] font-bold">Budget</span>
-                      <span className="text-white font-mono">500 SUI</span>
+                      <span className="text-white font-mono">500 MNT</span>
                     </div>
                     <div className="text-right flex flex-col items-end">
                       <span className="text-gray-500 uppercase text-[10px] font-bold">AI Confidence</span>
@@ -233,7 +233,7 @@ export const TransparencyMapPage = () => {
                   <div className="flex justify-between items-center text-xs">
                     <div className="flex flex-col">
                       <span className="text-gray-500 uppercase text-[10px] font-bold">Budget</span>
-                      <span className="text-gray-300 font-mono">1,200 SUI</span>
+                      <span className="text-gray-300 font-mono">1,200 MNT</span>
                     </div>
                     <div className="text-right flex flex-col items-end">
                       <span className="text-gray-500 uppercase text-[10px] font-bold">Progress</span>
@@ -256,7 +256,7 @@ export const TransparencyMapPage = () => {
                   <div className="flex justify-between items-center text-xs">
                     <div className="flex flex-col">
                       <span className="text-gray-500 uppercase text-[10px] font-bold">Budget</span>
-                      <span className="text-gray-300 font-mono">3,500 SUI</span>
+                      <span className="text-gray-300 font-mono">3,500 MNT</span>
                     </div>
                     <div className="text-right flex flex-col items-end">
                       <span className="text-gray-500 uppercase text-[10px] font-bold">Votes</span>
@@ -279,7 +279,7 @@ export const TransparencyMapPage = () => {
                   <div className="flex justify-between items-center text-xs">
                     <div className="flex flex-col">
                       <span className="text-gray-500 uppercase text-[10px] font-bold">Budget</span>
-                      <span className="text-gray-300 font-mono">800 SUI</span>
+                      <span className="text-gray-300 font-mono">800 MNT</span>
                     </div>
                     <div className="text-right flex flex-col items-end">
                       <span className="text-gray-500 uppercase text-[10px] font-bold">AI Confidence</span>
@@ -371,7 +371,7 @@ export const TransparencyMapPage = () => {
                 <div className="bg-[#122017] rounded-xl p-4 border border-[#29382f]">
                   <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Funds Released</p>
                   <div className="flex items-center gap-2 text-white font-mono text-sm">
-                    <span>50.00 SUI</span>
+                    <span>50.00 MNT</span>
                     <span className="text-xs text-gray-500">(Milestone 3)</span>
                   </div>
                 </div>

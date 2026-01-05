@@ -15,6 +15,14 @@ export const Header = () => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
+  const handleConnect = async () => {
+    try {
+      await connect();
+    } catch (error) {
+      console.error('Connection error in Header:', error);
+    }
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-solid border-border-dark bg-background-dark/80 backdrop-blur-md">
       <div className="layout-container">
@@ -82,7 +90,7 @@ export const Header = () => {
               </div>
             ) : (
               <button 
-                onClick={connect}
+                onClick={handleConnect}
                 className="bg-[#38e07b] hover:bg-[#22c565] text-[#111814] font-bold px-6 py-2 rounded-full"
               >
                 Connect Wallet
