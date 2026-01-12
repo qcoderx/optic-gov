@@ -28,7 +28,7 @@ from auth import hash_password, verify_password, create_access_token, verify_tok
 
 load_dotenv()
 
-app = FastAPI(title="Optic-Gov Mantle AI Oracle")
+app = FastAPI(title="Optic-Gov Mantle AI Oracle", redirect_slashes=False)
 
 app.add_middleware(
     CORSMiddleware,
@@ -135,139 +135,56 @@ def convert_mnt_to_ngn(mnt_amount: float) -> float:
 async def release_funds_mantle(project_on_chain_id: int, milestone_index: int):
     """
     Release funds for a milestone on Mantle blockchain.
-    
-    Args:
-        project_on_chain_id: The project ID on the blockchain (uint256)
-        milestone_index: The milestone index (uint256) - Note: should be 0-indexed on chain
-    
-    Returns:
-        Transaction hash if successful, None otherwise
+    Fixed: strictly handles 1-based (DB) to 0-based (Contract) conversion.
     """
     try:
         sender_address = ORACLE_ADDRESS 
         
-        print(f"🔄 MANTLE: Releasing funds for Project ID: {project_on_chain_id}, Milestone Index: {milestone_index}")
+        # 1. INDEX ALIGNMENT: 
+        # DB Milestone 1 = Blockchain Index 0.
+        blockchain_index = int(milestone_index) - 1
+        if blockchain_index < 0:
+            blockchain_index = 0
+            
+        print(f"🔄 MANTLE: Releasing Project {project_on_chain_id}, Milestone Index {blockchain_index}")
         
-        # IMPORTANT: Contract might expect 0-indexed milestone indices
-        # But our database uses 1-indexed. Try both approaches
-        # First try with milestone_index as-is (assuming frontend uses 0-indexed)
-        
-        # 1. Check if we're the oracle (security check)
+        # 2. Security Check
         contract_oracle = optic_gov_contract.functions.oracleAddress().call()
-        print(f"🔐 Contract Oracle Address: {contract_oracle}")
-        print(f"🔐 Our Oracle Address: {sender_address}")
-        
         if contract_oracle.lower() != sender_address.lower():
-            print(f"❌ UNAUTHORIZED: We are not the registered oracle")
-            print(f"   Expected: {contract_oracle}")
-            print(f"   Actual: {sender_address}")
+            print(f"❌ UNAUTHORIZED: Expected {contract_oracle}, got {sender_address}")
             return None
         
-        # 2. Try to get the milestone info first (for debugging)
-        try:
-            milestone_info = optic_gov_contract.functions.getMilestone(
-                project_on_chain_id,
-                milestone_index  # Try with provided index
-            ).call()
-            print(f"📋 Milestone Info: {milestone_info}")
-            print(f"   Description: {milestone_info[0]}")
-            print(f"   Amount: {milestone_info[1] / 10**18} MNT")
-            print(f"   isCompleted: {milestone_info[2]}")
-            print(f"   isReleased: {milestone_info[3]}")
-            
-            if milestone_info[2]:  # isCompleted
-                print("❌ Milestone already completed")
-                return None
-            if milestone_info[3]:  # isReleased
-                print("❌ Funds already released")
-                return None
-                
-        except Exception as e:
-            print(f"⚠️ Could not fetch milestone info: {str(e)[:100]}")
-            # Try with 0-indexed (subtract 1)
-            try:
-                milestone_index_0 = milestone_index - 1
-                milestone_info = optic_gov_contract.functions.getMilestone(
-                    project_on_chain_id,
-                    milestone_index_0
-                ).call()
-                print(f"📋 Milestone Info (0-indexed): {milestone_info}")
-                print(f"   Using adjusted index: {milestone_index_0}")
-                milestone_index = milestone_index_0  # Use adjusted index
-            except:
-                print("❌ Could not fetch milestone with any index adjustment")
-                return None
-        
-        # 3. Estimate gas for the transaction
-        try:
-            # Note: The contract expects _verdict parameter (bool)
-            # Based on ABI: releaseMilestone(uint256 _projectId, uint256 _milestoneIndex, bool _verdict)
-            estimated_gas = optic_gov_contract.functions.releaseMilestone(
-                project_on_chain_id,
-                milestone_index,  # Use the (possibly adjusted) index
-                True  # _verdict: True means approve release
-            ).estimate_gas({'from': sender_address})
-            
-            gas_limit = int(estimated_gas * 1.2)  # 20% buffer
-            print(f"⛽ Gas estimate: {estimated_gas}, Using: {gas_limit}")
-            
-        except Exception as e:
-            print(f"❌ Gas estimation failed: {str(e)[:100]}")
-            # Try to decode the revert reason
-            if "InvalidMilestone" in str(e):
-                print("❌ CONTRACT: InvalidMilestone error - Check project ID and milestone index")
-            elif "AlreadyCompleted" in str(e):
-                print("❌ CONTRACT: Milestone already completed")
-            elif "Unauthorized" in str(e):
-                print("❌ CONTRACT: Not authorized (not the oracle)")
-            return None
-        
-        # 4. Build and send transaction
+        # 3. Build Transaction
+        # Note: True verdict approves the payout
         tx = optic_gov_contract.functions.releaseMilestone(
-            project_on_chain_id,
-            milestone_index,
+            int(project_on_chain_id),
+            blockchain_index,
             True
         ).build_transaction({
             'from': sender_address,
             'nonce': w3.eth.get_transaction_count(sender_address),
-            'gas': gas_limit,
+            'gas': 300000, 
             'gasPrice': w3.eth.gas_price,
-            'chainId': 5003,  # Mantle Sepolia
+            'chainId': 5003, # Mantle Sepolia
         })
         
-        # 5. Sign and send
+        # 4. Sign and Send
+        # Using snake_case 'raw_transaction' for compatibility
         signed_tx = w3.eth.account.sign_transaction(tx, ORACLE_PRIVATE_KEY)
         tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
         
-        print(f"⏳ Transaction sent: {tx_hash.hex()}")
-        print(f"⏳ Waiting for confirmation...")
-        
-        # Wait for receipt with timeout
+        print(f"⏳ Waiting for confirmation: {tx_hash.hex()}...")
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
         
         if receipt.status == 1:
-            print(f"✅ Milestone released successfully!")
-            # CORRECT EXPLORER URL for Mantle Sepolia
-            print(f"   Transaction: https://sepolia-explorer.mantle.xyz/tx/0x{tx_hash.hex()}")
-            return tx_hash.hex()
+            print(f"✅ Payout Success!")
+            return tx_hash.hex() if tx_hash.hex().startswith("0x") else f"0x{tx_hash.hex()}"
         else:
             print(f"❌ Transaction reverted on-chain")
-            # Try to get revert reason
-            try:
-                # Replay the call to get revert reason
-                optic_gov_contract.functions.releaseMilestone(
-                    project_on_chain_id,
-                    milestone_index,
-                    True
-                ).call({'from': sender_address})
-            except Exception as e:
-                print(f"   Revert reason: {str(e)[:200]}")
             return None
         
     except Exception as e:
         print(f"❌ MANTLE ERROR: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return None
 
 def extract_video_location(video_path: str):
@@ -546,7 +463,16 @@ Return ONLY a JSON array like: ["Foundation excavation", "Concrete pouring", "St
 
 @app.post("/create-project")
 async def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
-    contractor = db.query(Contractor).filter(Contractor.wallet_address == project.contractor_wallet).first()
+    contractor = db.query(Contractor).filter(
+        Contractor.wallet_address.ilike(project.contractor_wallet) 
+    ).first()
+    
+    if not contractor:
+        # If ilike isn't working for some reason, try this fallback:
+        contractor = db.query(Contractor).filter(
+            Contractor.wallet_address == project.contractor_wallet.lower()
+        ).first()
+
     if not contractor:
         raise HTTPException(
             status_code=404, 
@@ -561,13 +487,6 @@ async def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
         budget_mnt = convert_ngn_to_mnt(project.total_budget)
     else:
         budget_ngn = convert_mnt_to_ngn(project.total_budget)
-    
-    # CRITICAL FIX: Ensure on_chain_id is provided and not empty
-    if not project.on_chain_id:
-        # For demo purposes, generate a placeholder on_chain_id
-        import random
-        project.on_chain_id = random.randint(1000, 9999)
-        print(f"⚠️ WARNING: No on_chain_id provided. Using demo ID: {project.on_chain_id}")
     
     # Create project (store MNT amount for blockchain consistency)
     db_project = Project(
@@ -769,98 +688,60 @@ async def upload_video(video: UploadFile = File(...)):
 # 3. Verification Endpoint (SYNC to prevent freezing)
 @app.post("/verify-milestone", response_model=VerificationResponse)
 def verify_milestone(request: VerificationRequest, db: Session = Depends(get_db)):
-    print(f"\n{'='*60}")
-    print(f"🔍 DEEP DEBUG: Starting Verification for Project {request.project_id}")
-    print(f"📍 Target Milestone Index: {request.milestone_index}")
-    print(f"{'='*60}")
+    print(f"\n{'='*60}\n🔍 STARTING VERIFICATION: Project {request.project_id}\n{'='*60}")
     
     temp_file_path = None
     
     try:
-        # 1. DATABASE & CONFIG CHECK
+        # 1. Database Check
         project = db.query(Project).filter(Project.id == request.project_id).first()
         if not project:
-            print(f"❌ DB ERROR: Project {request.project_id} not found.")
             raise HTTPException(status_code=404, detail="Project not found")
-        print(f"✅ DB: Found project '{project.name}'")
 
-        # 2. LOCAL DOWNLOAD
-        print(f"📥 DOWNLOAD: Fetching video from {request.video_url}")
+        # 2. Video Processing
         response_video = requests.get(request.video_url, stream=True)
         response_video.raise_for_status()
         
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
         temp_file_path = temp_file.name
-        
         with open(temp_file_path, 'wb') as f:
             shutil.copyfileobj(response_video.raw, f)
             
-        print(f"📂 LOCAL DISK: Video saved to {temp_file_path}")
-        
-        # 3. GEMINI UPLOAD
-        print("🤖 CLOUD: Uploading to Gemini Oracle...")
-        unique_display_name = f"optic-milestone-{uuid.uuid4()}"
-        video_file = genai.upload_file(path=temp_file_path, display_name=unique_display_name)
-
-        # 4. STATE POLLING
-        start_time = time.time()
+        # 3. Gemini Analysis
+        video_file = genai.upload_file(path=temp_file_path, display_name=f"verify-{uuid.uuid4()}")
         while video_file.state.name == "PROCESSING":
-            print(f"⏳ POLLING: State is PROCESSING ({int(time.time() - start_time)}s elapsed)...")
             time.sleep(3)
             video_file = genai.get_file(video_file.name)
-        print(f"✨ POLLING COMPLETE: Final State is {video_file.state.name}")
 
-        # 5. SETTLE TIME
-        time.sleep(5)
-
-        # 6. ANALYSIS WITH RATE-LIMIT HANDLING
-        prompt = f"""[TESTING MODE] Verify milestone: {request.milestone_criteria}. 
-        Return ONLY a JSON object: {{"verified": true, "confidence_score": 95, "reasoning": "Activity detected."}}"""
-
-        response = None
-        last_error = ""
+        prompt = f"Verify milestone: {request.milestone_criteria}. Return ONLY JSON: {{\"verified\": bool, \"confidence_score\": int, \"reasoning\": string}}"
         
-        for attempt in range(1, 4):
+        # Simple retry logic for AI
+        response = None
+        for attempt in range(3):
             try:
-                print(f"🧠 INFERENCE: Attempt {attempt}/3...")
-                current_file = genai.get_file(video_file.name)
-                response = model.generate_content([prompt, current_file])
-                
-                if response and response.candidates[0].content.parts:
-                    print("✅ INFERENCE: Received response from AI.")
-                    break
-            except Exception as e:
-                last_error = str(e)
-                print(f"⚠️ INFERENCE ATTEMPT {attempt} FAILED: {last_error}")
-                # FIX: Wait long enough to reset the 3-requests-per-minute quota
-                if "429" in last_error:
-                    print("🕒 Rate limit hit. Waiting 65 seconds...")
-                    time.sleep(65) 
-                else:
-                    time.sleep(5)
+                response = model.generate_content([prompt, video_file])
+                if response: break
+            except Exception:
+                time.sleep(5)
 
         if not response:
-            raise Exception(f"AI Oracle failed. Last Error: {last_error}")
+            raise Exception("AI Oracle failed to respond.")
 
-        # 7. PARSING
+        # 4. Parsing result
         json_text = response.text.replace('```json', '').replace('```', '').strip()
         result = json.loads(json_text)
 
-        # 8. BLOCKCHAIN PAYOUT
+        # 5. Blockchain Payout & DB Update
         if result.get("verified") and result.get("confidence_score", 0) >= 70:
             if project.on_chain_id:
-                print(f"⛓️ MANTLE: Triggering payout for On-Chain ID {project.on_chain_id}...")
+                # Trigger the payout
+                tx_hash = asyncio.run(release_funds_mantle(int(project.on_chain_id), request.milestone_index))
                 
-                # Execute the payout logic
-                mantle_tx = asyncio.run(release_funds_mantle(int(project.on_chain_id), request.milestone_index))
-                
-                if mantle_tx:
-                    # FIX: Ensure the hash is formatted for the frontend explorer link
-                    formatted_hash = mantle_tx if mantle_tx.startswith("0x") else f"0x{mantle_tx}"
-                    result["mantle_transaction"] = formatted_hash
+                if tx_hash:
+                    result["mantle_transaction"] = tx_hash
                     result["primary_chain"] = "mantle"
                     
-                    # Update local database
+                    # Update local DB status
                     ms = db.query(Milestone).filter(
                         Milestone.project_id == project.id, 
                         Milestone.order_index == request.milestone_index
@@ -868,9 +749,8 @@ def verify_milestone(request: VerificationRequest, db: Session = Depends(get_db)
                     if ms:
                         ms.status = "verified"
                         db.commit()
-                        print("📝 DB: Milestone status updated to 'verified'")
                 else:
-                    result["error"] = "Mantle transaction failed to execute."
+                    result["error"] = "AI verified, but blockchain payout failed."
 
         return VerificationResponse(**result)
         
@@ -880,7 +760,6 @@ def verify_milestone(request: VerificationRequest, db: Session = Depends(get_db)
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
             os.unlink(temp_file_path)
-        print(f"{'='*60}\n")
 
 @app.get("/")
 async def root():
@@ -1027,4 +906,3 @@ async def check_contract_state(project_id: int, milestone_index: int, db: Sessio
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-

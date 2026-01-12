@@ -1,0 +1,36 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "contracts/OpticGov.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\n/**\n * @title OpticGov\n * @dev Transparency-focused project management and funding contract.\n */\ncontract OpticGov {\n    // --- Custom Errors ---\n    error Unauthorized(address caller);\n    error InvalidLength();\n    error InvalidAmount();\n    error InvalidMilestone(uint256 projectId, uint256 milestoneIndex);\n    error AlreadyCompleted();\n    error TransferFailed();\n    error OnlyContractor(address contractor);\n    error ProjectDoesNotExist();\n\n    // --- State Variables ---\n    address public immutable oracleAddress;\n    uint256 public nextProjectId;\n\n    struct Milestone {\n        string description;\n        uint256 amount; \n        bool isCompleted; \n        bool isReleased;  \n        string evidenceIpfsHash; \n    }\n\n    struct Project {\n        address funder; \n        address contractor;\n        uint256 totalBudget;\n        uint256 fundsReleased;\n        uint256 milestoneCount;\n        Milestone[] milestones;\n    }\n\n    mapping(uint256 => Project) public projects;\n\n    // --- Modifiers ---\n    modifier onlyOracle() {\n        if (msg.sender != oracleAddress) revert Unauthorized(msg.sender); \n        _;\n    }\n\n    // --- Events ---\n    event ProjectCreated(uint256 indexed projectId, address indexed funder, address indexed contractor, uint256 budget);\n    event MilestoneReleased(uint256 indexed projectId, uint256 indexed milestoneIndex, uint256 amount);\n    event EvidenceSubmitted(uint256 indexed projectId, uint256 indexed milestoneIndex, string ipfsHash);\n\n    constructor(address _oracleAddress) {\n        if (_oracleAddress == address(0)) revert Unauthorized(address(0));\n        oracleAddress = _oracleAddress;\n    }\n\n    /**\n     * @notice Creates a new project with set milestones.\n     * @param _contractor The wallet address of the worker/contractor.\n     * @param _milestoneAmounts Array of costs for each milestone.\n     * @param _milestoneDescriptions Array of text descriptions for each milestone.\n     */\n    function createProject(\n        address _contractor, // <--- FIXED: Removed the extra \"_contract\" identifier\n        uint256[] calldata _milestoneAmounts,\n        string[] calldata _milestoneDescriptions\n    ) external payable returns (uint256) {\n        if (_milestoneAmounts.length != _milestoneDescriptions.length) revert InvalidLength();\n        if (_milestoneAmounts.length == 0) revert InvalidLength();\n\n        uint256 totalProjectCost;\n        for (uint256 i = 0; i < _milestoneAmounts.length; i++) {\n            totalProjectCost += _milestoneAmounts[i];\n        }\n\n        if (msg.value != totalProjectCost) revert InvalidAmount();\n\n        uint256 projectId = nextProjectId++;\n        Project storage newProject = projects[projectId];\n        newProject.funder = msg.sender;\n        newProject.contractor = _contractor;\n        newProject.totalBudget = totalProjectCost;\n        newProject.milestoneCount = _milestoneAmounts.length;\n        \n        for (uint256 i = 0; i < _milestoneAmounts.length; i++) {\n            newProject.milestones.push(Milestone({\n                description: _milestoneDescriptions[i],\n                amount: _milestoneAmounts[i],\n                isCompleted: false,\n                isReleased: false,\n                evidenceIpfsHash: \"\"\n            }));\n        }\n\n        emit ProjectCreated(projectId, msg.sender, _contractor, totalProjectCost);\n        return projectId;\n    }\n\n    function submitEvidence(\n        uint256 _projectId, \n        uint256 _milestoneIndex, \n        string calldata _ipfsHash\n    ) external {\n        Project storage project = projects[_projectId];\n        if (project.funder == address(0)) revert ProjectDoesNotExist();\n        if (msg.sender != project.contractor) revert OnlyContractor(project.contractor);\n        if (_milestoneIndex >= project.milestoneCount) revert InvalidMilestone(_projectId, _milestoneIndex);\n        \n        Milestone storage m = project.milestones[_milestoneIndex];\n        if (m.isCompleted) revert AlreadyCompleted();\n\n        m.evidenceIpfsHash = _ipfsHash;\n        emit EvidenceSubmitted(_projectId, _milestoneIndex, _ipfsHash);\n    }\n\n    function releaseMilestone(\n        uint256 _projectId, \n        uint256 _milestoneIndex, \n        bool _verdict\n    ) external onlyOracle {\n        Project storage project = projects[_projectId];\n        if (_milestoneIndex >= project.milestoneCount) revert InvalidMilestone(_projectId, _milestoneIndex);\n        \n        Milestone storage milestone = project.milestones[_milestoneIndex];\n        if (milestone.isCompleted) revert AlreadyCompleted();\n        \n        // 1. Effects: Update state first (CEI pattern)\n        milestone.isCompleted = true; \n        \n        if (_verdict) {\n            milestone.isReleased = true; \n            uint256 releaseAmount = milestone.amount; // Use specific amount, not project.totalBudget\n            project.fundsReleased += releaseAmount;\n\n            // 2. Interaction: Release ONLY the milestone amount\n            (bool success, ) = payable(project.contractor).call{value: releaseAmount}(\"\");\n            if (!success) revert TransferFailed();\n            \n            emit MilestoneReleased(_projectId, _milestoneIndex, releaseAmount);\n        }\n    }\n\n    function getMilestone(uint256 _projectId, uint256 _index) external view returns (Milestone memory) {\n        return projects[_projectId].milestones[_index];\n    }\n\n    // Safety: Allow the contract to receive ETH/MNT directly if needed\n    receive() external payable {}\n}"
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "evmVersion": "paris",
+    "outputSelection": {
+      "*": {
+        "*": [
+          "abi",
+          "evm.bytecode",
+          "evm.deployedBytecode",
+          "evm.methodIdentifiers",
+          "metadata",
+          "devdoc",
+          "userdoc",
+          "storageLayout",
+          "evm.gasEstimates"
+        ],
+        "": [
+          "ast"
+        ]
+      }
+    },
+    "metadata": {
+      "useLiteralContent": true
+    }
+  }
+}

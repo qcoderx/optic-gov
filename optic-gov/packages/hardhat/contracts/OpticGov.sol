@@ -125,17 +125,19 @@ contract OpticGov {
         Milestone storage milestone = project.milestones[_milestoneIndex];
         if (milestone.isCompleted) revert AlreadyCompleted();
         
+        // 1. Effects: Update state first (CEI pattern)
         milestone.isCompleted = true; 
         
         if (_verdict) {
             milestone.isReleased = true; 
-            project.fundsReleased += milestone.amount;
+            uint256 releaseAmount = milestone.amount; // Use specific amount, not project.totalBudget
+            project.fundsReleased += releaseAmount;
 
-            // Using call instead of transfer for future-proofing and Mantle compatibility
-            (bool success, ) = payable(project.contractor).call{value: milestone.amount}("");
+            // 2. Interaction: Release ONLY the milestone amount
+            (bool success, ) = payable(project.contractor).call{value: releaseAmount}("");
             if (!success) revert TransferFailed();
             
-            emit MilestoneReleased(_projectId, _milestoneIndex, milestone.amount);
+            emit MilestoneReleased(_projectId, _milestoneIndex, releaseAmount);
         }
     }
 

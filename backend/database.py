@@ -6,13 +6,15 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Database connection URL
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/optic_gov")
 
-# UPDATED: Added pool_pre_ping=True to fix SSL disconnect errors
+# Optimization: pool_pre_ping ensures stale connections are removed before use
 engine = create_engine(
     DATABASE_URL, 
-    pool_pre_ping=True,  # Pings DB before query to ensure connection is alive
-    pool_recycle=300     # Recycles connections every 5 minutes
+    pool_pre_ping=True,  
+    pool_recycle=300     
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -35,15 +37,14 @@ class Project(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
     description = Column(Text)
-    total_budget = Column(Float) # Now stores SUI amount
+    total_budget = Column(Float) # Stores MNT amount
     contractor_id = Column(Integer, ForeignKey("contractors.id"))
     gov_wallet = Column(String)
     ai_generated = Column(Boolean, default=False)
     project_latitude = Column(Float)
     project_longitude = Column(Float)
     location_tolerance_km = Column(Float, default=1.0)
-    on_chain_id = Column(String, nullable=True) # SUI Object ID
-    sui_project_id = Column(String, nullable=True)
+    on_chain_id = Column(String, nullable=True) # Mantle Project Index
     created_at = Column(DateTime, default=datetime.utcnow)
     
     milestones = relationship("Milestone", back_populates="project")
@@ -54,10 +55,10 @@ class Milestone(Base):
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(Integer, ForeignKey("projects.id"))
     description = Column(Text)
-    amount = Column(Float) # Now stores SUI amount
-    order_index = Column(Integer)
+    amount = Column(Float) # Stores MNT amount for this specific milestone
+    order_index = Column(Integer) # 1-based index (converted to 0-based in main.py)
     is_completed = Column(Boolean, default=False)
-    status = Column(String, default="pending")  # pending, completed, verified
+    status = Column(String, default="pending")  # pending, verified, completed
     created_at = Column(DateTime, default=datetime.utcnow)
     
     project = relationship("Project", back_populates="milestones")
