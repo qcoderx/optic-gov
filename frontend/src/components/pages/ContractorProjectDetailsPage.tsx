@@ -19,7 +19,7 @@ export const ContractorProjectDetailsPage = () => {
         const projectData = await projectService.getProject(parseInt(projectId));
         setProject(projectData);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load project');
+        console.error('Failed to load project:', err);
       } finally {
         setLoading(false);
       }

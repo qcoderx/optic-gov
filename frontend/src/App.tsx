@@ -79,7 +79,7 @@ function App() {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <ConnectKitProvider theme="dark">
+        <ConnectKitProvider mode="dark">
           <ErrorBoundary>
             <Router>
               <ConnectionStatus />

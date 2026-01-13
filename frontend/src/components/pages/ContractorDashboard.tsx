@@ -9,7 +9,7 @@ import { useWallet } from '@/hooks/useWallet';
 export const ContractorDashboard = () => {
   const { address } = useWallet();
   const [activeFilter, setActiveFilter] = useState('Active');
-  const [isNavigating, setIsNavigating] = useState(false);
+  const [isNavigating] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
   const [activities] = useState<any[]>([]);
   const [stats, setStats] = useState({ activeProjects: 0, totalFunds: 0, pendingVerifications: 0, nextDeadline: 0 });
@@ -51,7 +51,6 @@ export const ContractorDashboard = () => {
 
   const loadProjects = async () => {
     try {
-      setIsLoading(true);
       const response = await projectService.getAllProjects();
       const projectsArray = response.projects || response || [];
       
@@ -71,7 +70,7 @@ export const ContractorDashboard = () => {
       const detailedProjects = await Promise.all(
         transformedProjects.map(async (p) => {
           try {
-            const details = await projectService.getProject(p.id);
+            const details = await projectService.getProject(Number(p.id));
             return { ...p, ...details };
           } catch {
             return p;
@@ -96,8 +95,6 @@ export const ContractorDashboard = () => {
       
     } catch (err) {
       console.error('Sync error:', err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
