@@ -13,7 +13,6 @@ export const ContractorDashboard = () => {
   const [projects, setProjects] = useState<any[]>([]);
   const [activities] = useState<any[]>([]);
   const [stats, setStats] = useState({ activeProjects: 0, totalFunds: 0, pendingVerifications: 0, nextDeadline: 0 });
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadProjects();
