@@ -145,6 +145,10 @@ class CurrencyService {
       maximumFractionDigits: 4 
     })} MNT`;
   }
+
+  formatSui(amount: number): string {
+    return this.formatMnt(amount);
+  }
 }
 
 export const currencyService = new CurrencyService();

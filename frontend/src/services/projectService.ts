@@ -166,7 +166,7 @@ class ProjectService {
   }
 
   // Transform backend project to frontend format
-  private transformProject(data: any): Project {
+  transformProject(data: any): Project {
     return {
       ...data, // This preserves all raw fields like 'budget' and 'total_budget_ngn'
       id: data.id,

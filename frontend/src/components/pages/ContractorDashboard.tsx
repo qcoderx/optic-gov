@@ -9,12 +9,10 @@ import { useWallet } from '@/hooks/useWallet';
 export const ContractorDashboard = () => {
   const { address } = useWallet();
   const [activeFilter, setActiveFilter] = useState('Active');
-  const [isNavigating, setIsNavigating] = useState(false);
+  const [isNavigating] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
-  const [activities, setActivities] = useState<any[]>([]);
+  const [activities] = useState<any[]>([]);
   const [stats, setStats] = useState({ activeProjects: 0, totalFunds: 0, pendingVerifications: 0, nextDeadline: 0 });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadProjects();
@@ -52,19 +50,26 @@ export const ContractorDashboard = () => {
 
   const loadProjects = async () => {
     try {
-      setIsLoading(true);
       const response = await projectService.getAllProjects();
       const projectsArray = response.projects || response || [];
       
       const transformedProjects = Array.isArray(projectsArray) 
-        ? projectsArray.map(project => projectService.transformProject(project))
+        ? projectsArray.map(project => ({
+            ...project,
+            id: project.id,
+            name: project.name || project.title,
+            description: project.description,
+            total_budget_mnt: project.budget || project.total_budget_mnt,
+            total_budget_ngn: project.total_budget_ngn,
+            milestones: project.milestones || []
+          }))
         : [];
       
       // Fetch details (milestones) for each project to ensure status is accurate
       const detailedProjects = await Promise.all(
         transformedProjects.map(async (p) => {
           try {
-            const details = await projectService.getProjectDetails(p.id);
+            const details = await projectService.getProject(Number(p.id));
             return { ...p, ...details };
           } catch {
             return p;
@@ -88,9 +93,7 @@ export const ContractorDashboard = () => {
       });
       
     } catch (err) {
-      setError('Sync error. Please check your Mantle RPC connection.');
-    } finally {
-      setIsLoading(false);
+      console.error('Sync error:', err);
     }
   };
 
@@ -195,7 +198,7 @@ export const ContractorDashboard = () => {
                         <Button className="flex-1 bg-[#38e07b] text-black font-bold h-11" onClick={() => window.location.href=`/contractor/project/${project.id}`}>
                           View Details
                         </Button>
-                        <Button variant="secondary" className="border-[#28392f] bg-[#111814] h-11 px-6" onClick={() => window.location.href=`/contractor/verify/${project.id}`}>
+                        <Button className="border-[#28392f] bg-[#111814] h-11 px-6" onClick={() => window.location.href=`/contractor/verify/${project.id}`}>
                           <Icon name="upload_file" />
                         </Button>
                       </div>

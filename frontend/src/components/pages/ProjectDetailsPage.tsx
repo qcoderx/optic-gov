@@ -7,7 +7,6 @@ import type { Project } from '@/types/project';
 export const ProjectDetailsPage = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const [selectedEvidence, setSelectedEvidence] = useState<string | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [contractor, setContractor] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -94,8 +93,8 @@ export const ProjectDetailsPage = () => {
 
   // Calculations
 // 1. Map the Budget correctly based on your console log
-// Your log shows "total_budget" contains the MNT value
-const totalMNT = project.total_budget || (project as any).budget || 0;
+// Your log shows "total_budget_mnt" contains the MNT value
+const totalMNT = project.total_budget_mnt || (project as any).budget || 0;
 
 // Since total_budget_ngn is undefined in your log, 
 // we'll try to find any available NGN field or display '---'

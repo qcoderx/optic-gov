@@ -73,16 +73,6 @@ export const GovernorMapDashboard = () => {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'verified': return 'verified';
-      case 'alert': return 'warning';
-      case 'pending': return 'hourglass_top';
-      case 'draft': return 'fiber_new';
-      default: return 'radio_button_unchecked';
-    }
-  };
-
   const getProgressColor = (status: string) => {
     switch (status) {
       case 'verified': return 'bg-[#38e07b]';

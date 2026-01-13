@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
 import { projectService } from '@/services/projectService';
 import type { Project } from '@/types/project';
@@ -11,7 +10,6 @@ export const ContractorProjectDetailsPage = () => {
   
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadProject = async () => {
@@ -21,7 +19,7 @@ export const ContractorProjectDetailsPage = () => {
         const projectData = await projectService.getProject(parseInt(projectId));
         setProject(projectData);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load project');
+        console.error('Failed to load project:', err);
       } finally {
         setLoading(false);
       }
@@ -54,7 +52,7 @@ export const ContractorProjectDetailsPage = () => {
   );
 
   // --- CALCULATIONS (Fixed Naming Mismatches) ---
-  const totalMNT = project?.total_budget || project?.budget || 0;
+  const totalMNT = project?.total_budget_mnt || project?.budget || 0;
   const milestonesList = project?.milestones || [];
   const milestonesCount = milestonesList.length || 1;
 

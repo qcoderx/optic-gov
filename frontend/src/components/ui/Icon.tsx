@@ -3,11 +3,12 @@ import { clsx } from 'clsx';
 
 interface IconProps extends HTMLAttributes<HTMLSpanElement> {
   name: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   filled?: boolean;
 }
 
 const sizeClasses = {
+  xs: 'text-[16px]',
   sm: 'text-[18px]',
   md: 'text-[24px]',
   lg: 'text-[28px]',
