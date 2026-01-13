@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAccount } from "wagmi";
 import { ConnectKitButton } from "connectkit";
 import debounce from "lodash/debounce";
+import { ethers } from "ethers";
+import { mantleService } from "@/services/mantleService";
+import { aiService } from "@/services/aiService";
 
 // UI & Services
 import { Icon } from "@/components/ui/Icon";
@@ -11,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { projectService } from "@/services/projectService";
+import { ProjectCreateRequest } from "@/types/project";
 import { currencyService } from "@/services/currencyService"; // Import service
 
 export const GovernorDashboardPage = () => {
@@ -29,7 +32,7 @@ export const GovernorDashboardPage = () => {
   const [milestoneDescription, setMilestoneDescription] = useState("");
   const [manualMilestones, setManualMilestones] = useState<string[]>([""]);
   
-  const [isNavigating, setIsNavigating] = useState(false);
+  const [isNavigating, ] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
   // Unified Conversion Logic
@@ -62,35 +65,97 @@ export const GovernorDashboardPage = () => {
   }, [budget, budgetCurrency, updateConversion]);
 
   const handleCreateProject = async () => {
-    if (!isConnected) { alert("Connect wallet first"); return; }
-    
+    if (!isConnected || !address) {
+      alert("Please connect your wallet to create a project.");
+      return;
+    }
+
     setIsCreating(true);
     try {
-      // If AI Mode is on, we pass an empty array for manual_milestones 
-      // and let the backend call Gemini
-      const projectData = {
+      // Step 1: Get milestone descriptions, from AI if needed
+      let milestoneDescriptions: string[];
+      if (useAiMilestones) {
+        if (!milestoneDescription)
+          throw new Error("AI milestone generation requires a project description.");
+        const aiResponse = await aiService.generateMilestones({
+          project_description: milestoneDescription,
+          total_budget: mntEquivalent,
+        });
+        milestoneDescriptions = aiResponse.milestones;
+      } else {
+        milestoneDescriptions = manualMilestones.filter((m) => m.trim());
+      }
+
+      if (milestoneDescriptions.length === 0) {
+        throw new Error("At least one milestone description is required.");
+      }
+      
+      // Step 2: Deploy to Mantle Smart Contract (Blockchain-First)
+      // Replace this section in GovernorDashboardPage.tsx
+
+      // Step 2: Deploy to Mantle Smart Contract (Blockchain-First)
+      const count = milestoneDescriptions.length;
+
+      // CRITICAL: Convert total budget to Wei FIRST, then divide
+      // This ensures we're working with the exact total that matches the backend
+      const totalBudgetWei = ethers.parseEther(mntEquivalent.toString());
+
+      // Calculate milestone amount by dividing the Wei total
+      const milestoneWei = totalBudgetWei / BigInt(count);
+
+      // Create array of milestone amounts (all the same)
+      const milestoneAmounts = Array(count).fill(milestoneWei.toString());
+
+      console.log("💰 Budget Calculation:", {
+        mntEquivalent,
+        totalBudgetWei: totalBudgetWei.toString(),
+        milestoneCount: count,
+        milestoneWei: milestoneWei.toString(),
+        milestoneAmountMNT: ethers.formatEther(milestoneWei),
+        totalValueWei: totalBudgetWei.toString() // Send the original total, not recalculated
+      });
+
+      const { projectId: onChainId, txHash } = await mantleService.createProject(
+        contractorAddress,
+        milestoneAmounts,
+        milestoneDescriptions,
+        totalBudgetWei.toString() // Use the original total budget
+      );
+
+      // Step 3: If blockchain succeeds, create record in the backend
+      const projectData: ProjectCreateRequest = {
         name: projectName,
-        description: milestoneDescription, // The prompt for the AI
-        total_budget: mntEquivalent, 
+        description: milestoneDescription,
+        total_budget: mntEquivalent,
         budget_currency: "MNT",
         contractor_wallet: contractorAddress,
-        use_ai_milestones: useAiMilestones, // Ensure this is true
-        manual_milestones: useAiMilestones ? [] : manualMilestones.filter(m => m.trim()),
+        use_ai_milestones: useAiMilestones,
+        manual_milestones: milestoneDescriptions, // Send the final list of milestones
         project_latitude: 6.5244,
         project_longitude: 3.3792,
         gov_wallet: address,
-        on_chain_id: Date.now(), 
+        on_chain_id: onChainId.toString(), // Use the REAL ID from the blockchain event
       };
-  
+
       await projectService.createProject(projectData);
+
+      console.log(
+        `Project created successfully on-chain with ID ${onChainId} (Tx: ${txHash}) and saved to backend.`
+      );
+
       navigate("/governor/projects");
-    } catch (error) {
-      console.error("Submission error:", error);
+    } catch (error: unknown) {
+      console.error("Project creation failed:", error);
+      if (error instanceof Error) {
+        alert(`Error: ${error.message || "An unexpected error occurred."}`);
+      } else {
+        alert("An unexpected error occurred.");
+      }
     } finally {
       setIsCreating(false);
     }
   };
-
+  
   if (isNavigating) return <LoadingScreen message="Loading..." />;
 
   return (

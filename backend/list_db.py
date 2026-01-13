@@ -31,7 +31,7 @@ def list_database_contents():
     project_data = []
     for p in projects:
         # Format MNT budget
-        budget = f"{p.total_budget:.2f} MNT" if p.total_budget else "0.00 MNT"
+        budget = f"{p.total_budget:.8f} MNT" if p.total_budget else "0.00 MNT"
         on_chain = p.on_chain_id if p.on_chain_id else "❌ NONE"
         project_data.append([p.id, p.name, budget, p.contractor_id, on_chain])
     
@@ -43,7 +43,7 @@ def list_database_contents():
     milestone_data = []
     for m in milestones:
         status_icon = "✅" if m.status == "verified" else "⏳"
-        milestone_data.append([m.id, m.project_id, m.order_index, m.description[:30]+"...", f"{m.amount:.2f} MNT", f"{status_icon} {m.status}"])
+        milestone_data.append([m.id, m.project_id, m.order_index, m.description[:30]+"...", f"{m.amount:.8f} MNT", f"{status_icon} {m.status}"])
     
     print("\n🎯 MILESTONES")
     print(tabulate(milestone_data, headers=["ID", "Proj ID", "Idx", "Description", "Amount", "Status"], tablefmt="grid"))

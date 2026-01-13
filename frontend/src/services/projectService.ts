@@ -6,7 +6,6 @@ import type {
   ProjectsResponse,
   ProjectCreateRequest,
 } from "@/types/project";
-import { abort } from "process";
 
 class ProjectService {
   async getAllProjects(): Promise<ProjectsResponse> {
@@ -59,64 +58,24 @@ class ProjectService {
 
   async createProject(project: ProjectCreateRequest): Promise<any> {
     try {
-      // 1. Prepare data for Backend
-      const projectData = {
-        ...project,
-        budget_currency: project.budget_currency || "NGN",
-      };
-
       const response = await fetch(`${API_BASE_URL}/create-project`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(projectData),
+        body: JSON.stringify(project),
       });
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}: Failed to create in DB`);
-      const result = await response.json();
-
-      // 2. Blockchain Creation
-      try {
-        const { mantleService } = await import("./mantleService");
-        const { ethers } = await import("ethers");
-
-        // ENSURE WE HAVE AT LEAST ONE MILESTONE (Prevents Solidity Revert)
-        const descriptions = project.manual_milestones?.length 
-          ? project.manual_milestones 
-          : ["Project Commencement & Initial Setup"];
-
-        const count = descriptions.length;
-        
-        // MATH FIX: Calculate exactly to avoid floating point trash in Wei
-        const amountPerMilestone = project.total_budget / count;
-        const milestoneWei = ethers.parseEther(amountPerMilestone.toFixed(18));
-        
-        // Sum the Wei precisely to ensure totalValue matches exactly
-        const totalValueWei = milestoneWei * BigInt(count);
-        const milestoneAmounts = Array(count).fill(milestoneWei.toString());
-
-        const { projectId, txHash } = await mantleService.createProject(
-          project.contractor_wallet,
-          milestoneAmounts,
-          descriptions,
-          totalValueWei.toString()
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error("Backend error:", errorBody);
+        throw new Error(
+          `Failed to create project in backend: ${errorBody}`
         );
-
-        // 3. Update DB with On-Chain ID
-        await fetch(`${API_BASE_URL}/projects/${result.project_id}/on-chain-id?on_chain_id=${projectId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-        });
-
-        result.on_chain_id = projectId;
-        result.tx_hash = txHash;
-      } catch (mantleError) {
-        console.error("Mantle Error:", mantleError);
-        // Alert user if DB worked but Blockchain failed
       }
-      return result;
+
+      return await response.json();
     } catch (error) {
-      console.error("ProjectService Error:", error);
-      throw error;
+      console.error("ProjectService.createProject error:", error);
+      throw error; // Re-throw to be caught in the component
     }
   }
 

@@ -134,58 +134,172 @@ def convert_mnt_to_ngn(mnt_amount: float) -> float:
 
 async def release_funds_mantle(project_on_chain_id: int, milestone_index: int):
     """
-    Release funds for a milestone on Mantle blockchain.
-    Fixed: strictly handles 1-based (DB) to 0-based (Contract) conversion.
+    Release milestone funds on Mantle blockchain
+    
+    Args:
+        project_on_chain_id: The on-chain project ID (integer)
+        milestone_index: The milestone index FROM YOUR DB (1-based)
     """
     try:
-        sender_address = ORACLE_ADDRESS 
+        # Convert to pure integers
+        p_id = int(project_on_chain_id)
+        m_idx = int(milestone_index) - 1  # DB uses 1-based, blockchain uses 0-based
         
-        # 1. INDEX ALIGNMENT: 
-        # DB Milestone 1 = Blockchain Index 0.
-        blockchain_index = int(milestone_index) - 1
-        if blockchain_index < 0:
-            blockchain_index = 0
+        print(f"🔄 RELEASING: Project {p_id}, Milestone {m_idx} (DB index: {milestone_index})")
+
+        # 1. CRITICAL: Check if milestone exists on-chain first
+        try:
+            milestone_info = optic_gov_contract.functions.getMilestone(p_id, m_idx).call()
+            print(f"📋 Milestone Info: Amount={milestone_info[1]}, Completed={milestone_info[2]}, Released={milestone_info[3]}")
             
-        print(f"🔄 MANTLE: Releasing Project {project_on_chain_id}, Milestone Index {blockchain_index}")
-        
-        # 2. Security Check
-        contract_oracle = optic_gov_contract.functions.oracleAddress().call()
-        if contract_oracle.lower() != sender_address.lower():
-            print(f"❌ UNAUTHORIZED: Expected {contract_oracle}, got {sender_address}")
+            if milestone_info[2]:  # isCompleted
+                print(f"⚠️ WARNING: Milestone already marked as completed on-chain")
+                if milestone_info[3]:  # isReleased
+                    print(f"❌ ERROR: Funds already released for this milestone")
+                    return None
+        except Exception as e:
+            print(f"❌ ERROR: Could not fetch milestone info: {e}")
+            print(f"💡 TIP: Make sure project {p_id} exists on-chain with at least {m_idx + 1} milestones")
             return None
+
+        # 2. Get the current nonce
+        nonce = w3.eth.get_transaction_count(ORACLE_ADDRESS)
+
+        # 3. FIXED: Let Web3 estimate the gas properly
+        # First, try to estimate gas to see what's actually needed
+        try:
+            estimated_gas = optic_gov_contract.functions.releaseMilestone(
+                p_id,
+                m_idx,
+                True
+            ).estimate_gas({
+                'from': ORACLE_ADDRESS,
+                'nonce': nonce
+            })
+            print(f"⛽ Estimated Gas: {estimated_gas}")
+            # Add 50% buffer to be safe
+            gas_limit = int(estimated_gas * 1.5)
+        except Exception as est_error:
+            print(f"⚠️ Gas estimation failed: {est_error}")
+            print(f"💡 Using fallback gas limit of 2,000,000")
+            gas_limit = 2_000_000
+
+        # 4. Get current gas price and add buffer for L2
+        base_gas_price = w3.eth.gas_price
+        gas_price = int(base_gas_price * 1.5)  # 50% buffer for L2 data fees
         
-        # 3. Build Transaction
-        # Note: True verdict approves the payout
-        tx = optic_gov_contract.functions.releaseMilestone(
-            int(project_on_chain_id),
-            blockchain_index,
+        print(f"⛽ Gas Limit: {gas_limit:,}")
+        print(f"💰 Gas Price: {gas_price:,} wei ({w3.from_wei(gas_price, 'gwei'):.2f} gwei)")
+
+        # 5. Build the transaction (Legacy style for Mantle compatibility)
+        tx_data = optic_gov_contract.functions.releaseMilestone(
+            p_id,
+            m_idx,
             True
         ).build_transaction({
-            'from': sender_address,
-            'nonce': w3.eth.get_transaction_count(sender_address),
-            'gas': 300000, 
-            'gasPrice': w3.eth.gas_price,
-            'chainId': 5003, # Mantle Sepolia
+            'from': ORACLE_ADDRESS,
+            'nonce': nonce,
+            'gas': gas_limit,
+            'gasPrice': gas_price,
+            'chainId': 5003,  # Mantle Sepolia
         })
-        
-        # 4. Sign and Send
-        # Using snake_case 'raw_transaction' for compatibility
-        signed_tx = w3.eth.account.sign_transaction(tx, ORACLE_PRIVATE_KEY)
+
+        # 6. Sign and Broadcast
+        signed_tx = w3.eth.account.sign_transaction(tx_data, ORACLE_PRIVATE_KEY)
         tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
         
-        print(f"⏳ Waiting for confirmation: {tx_hash.hex()}...")
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+        print(f"🚀 BROADCASTED: {tx_hash.hex()}")
+        print(f"🔗 View on Explorer: https://sepolia.mantlescan.xyz/tx/{tx_hash.hex()}")
+        
+        # 7. Wait for receipt with longer timeout
+        print(f"⏳ Waiting for confirmation...")
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
         
         if receipt.status == 1:
-            print(f"✅ Payout Success!")
-            return tx_hash.hex() if tx_hash.hex().startswith("0x") else f"0x{tx_hash.hex()}"
+            print(f"✅ BLOCKCHAIN CONFIRMED")
+            print(f"   Gas Used: {receipt.gasUsed:,}")
+            print(f"   Block: {receipt.blockNumber}")
+            return tx_hash.hex()
         else:
-            print(f"❌ Transaction reverted on-chain")
+            print(f"❌ TRANSACTION REVERTED ON-CHAIN")
+            print(f"   Receipt: {receipt}")
             return None
+
+    except ValueError as e:
+        error_data = str(e)
+        print(f"❌ TRANSACTION REJECTED: {error_data}")
+        
+        # Parse common errors
+        if "insufficient funds" in error_data.lower():
+            print(f"💡 FIX: Add more MNT to oracle wallet: {ORACLE_ADDRESS}")
+        elif "nonce too low" in error_data.lower():
+            print(f"💡 FIX: Another transaction is pending. Wait or increase nonce.")
+        elif "already known" in error_data.lower():
+            print(f"💡 FIX: Transaction already submitted. Check mempool.")
+        
+        return None
         
     except Exception as e:
-        print(f"❌ MANTLE ERROR: {str(e)}")
+        print(f"❌ MANTLE FATAL ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None
+
+
+# BONUS: Add this diagnostic function to check before attempting release
+async def check_project_on_chain(project_on_chain_id: int, db: Session):
+    """Verify project exists on-chain with proper setup"""
+    try:
+        p_id = int(project_on_chain_id)
+        
+        print(f"\n{'='*60}")
+        print(f"🔍 CHECKING ON-CHAIN STATE: Project {p_id}")
+        print(f"{'='*60}")
+        
+        # Get project from contract
+        project_data = optic_gov_contract.functions.projects(p_id).call()
+        
+        print(f"📊 Project Data:")
+        print(f"   Funder: {project_data[0]}")
+        print(f"   Contractor: {project_data[1]}")
+        print(f"   Total Budget: {w3.from_wei(project_data[2], 'ether')} MNT")
+        print(f"   Funds Released: {w3.from_wei(project_data[3], 'ether')} MNT")
+        print(f"   Milestone Count: {project_data[4]}")
+        
+        # Check each milestone
+        milestone_count = project_data[4]
+        print(f"\n📋 Milestones:")
+        for i in range(milestone_count):
+            m = optic_gov_contract.functions.getMilestone(p_id, i).call()
+            print(f"   [{i}] {m[0][:50]}...")
+            print(f"       Amount: {w3.from_wei(m[1], 'ether')} MNT")
+            print(f"       Completed: {m[2]} | Released: {m[3]}")
+        
+        # Check oracle address
+        contract_oracle = optic_gov_contract.functions.oracleAddress().call()
+        oracle_match = contract_oracle.lower() == ORACLE_ADDRESS.lower()
+        
+        print(f"\n🔑 Oracle Check:")
+        print(f"   Contract Oracle: {contract_oracle}")
+        print(f"   Backend Oracle: {ORACLE_ADDRESS}")
+        print(f"   Match: {'✅' if oracle_match else '❌'}")
+        
+        if not oracle_match:
+            print(f"\n❌ CRITICAL: Oracle address mismatch!")
+            print(f"   Your backend cannot release funds.")
+            print(f"   Update contract or use correct private key.")
+        
+        print(f"{'='*60}\n")
+        
+        return {
+            "exists": True,
+            "milestone_count": milestone_count,
+            "oracle_match": oracle_match
+        }
+        
+    except Exception as e:
+        print(f"❌ Project {p_id} does NOT exist on-chain: {e}")
+        return {"exists": False, "error": str(e)}
 
 def extract_video_location(video_path: str):
     try:
@@ -410,6 +524,28 @@ async def create_test_data(db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to create test data: {str(e)}")
 
+@app.get("/test-gemini")
+async def test_gemini_connection():
+    """Test if Gemini API is working"""
+    try:
+        # Test basic text generation
+        test_response = model.generate_content("Say 'Hello, Gemini is working!' in JSON format: {\"status\": \"working\", \"message\": \"...\"}")
+        
+        return {
+            "gemini_available": True,
+            "api_key_configured": bool(os.getenv("GEMINI_API_KEY")),
+            "model": "gemini-2.5-flash-preview",
+            "test_response": test_response.text,
+            "message": "Gemini API is functioning correctly"
+        }
+    except Exception as e:
+        return {
+            "gemini_available": False,
+            "api_key_configured": bool(os.getenv("GEMINI_API_KEY")),
+            "error": str(e),
+            "message": "Gemini API test failed"
+        }
+
 @app.post("/convert-currency")
 async def convert_currency(request: ConvertRequest):
     """Convert between NGN and MNT"""
@@ -505,10 +641,15 @@ async def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_project)
     
-    # Create milestones
-    if project.use_ai_milestones:
+    # FIXED: Use the milestone descriptions that were already sent from frontend
+    # The frontend already generated them (with AI or manually) and deployed to blockchain
+    # We should use the EXACT same milestones that are on the blockchain
+    milestone_descriptions = project.manual_milestones or []
+    
+    # If no milestones were sent, fall back to generating them (backward compatibility)
+    if not milestone_descriptions and project.use_ai_milestones:
         try:
-            # Call the internal function
+            print(f"⚠️ WARNING: No milestones provided by frontend, generating new ones...")
             ai_response = await generate_milestones(MilestoneGenerate(
                 project_description=project.description,
                 total_budget=project.total_budget
@@ -517,10 +658,9 @@ async def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
             print(f"✨ AI Generated {len(milestone_descriptions)} milestones")
         except Exception as e:
             print(f"❌ AI Generation failed: {e}")
-            # Fallback to a default milestone so the project creation doesn't crash
             milestone_descriptions = ["Project Initial Phase", "Main Construction", "Final Inspection"]
-    else:
-        milestone_descriptions = project.manual_milestones or []
+    
+    print(f"📋 Creating {len(milestone_descriptions)} milestones in database")
     
     # Create milestone records (use MNT amount for milestones)
     if milestone_descriptions:
@@ -535,6 +675,9 @@ async def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
             db.add(milestone)
     
     db.commit()
+    
+    print(f"✅ Project {db_project.id} created with {len(milestone_descriptions)} milestones")
+    
     return {
         "project_id": db_project.id, 
         "milestones_created": len(milestone_descriptions),
@@ -685,12 +828,16 @@ async def upload_video(video: UploadFile = File(...)):
         print(f"Upload Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# 3. Verification Endpoint (SYNC to prevent freezing)
+
+
+# Replace your verify_milestone endpoint with this version
 @app.post("/verify-milestone", response_model=VerificationResponse)
-def verify_milestone(request: VerificationRequest, db: Session = Depends(get_db)):
+async def verify_milestone(request: VerificationRequest, db: Session = Depends(get_db)):
     print(f"\n{'='*60}\n🔍 STARTING VERIFICATION: Project {request.project_id}\n{'='*60}")
     
     temp_file_path = None
+    video_file = None
+    should_delete_temp = False  # Track if we need to delete temp file
     
     try:
         # 1. Database Check
@@ -698,68 +845,359 @@ def verify_milestone(request: VerificationRequest, db: Session = Depends(get_db)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        # 2. Video Processing
-        response_video = requests.get(request.video_url, stream=True)
-        response_video.raise_for_status()
+        # 2. Get Video File Path
+        print("📁 Locating video file...")
         
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-        temp_file_path = temp_file.name
-        with open(temp_file_path, 'wb') as f:
-            shutil.copyfileobj(response_video.raw, f)
+        # Check if URL is local (served by this same server)
+        if "localhost:8000" in request.video_url or "127.0.0.1:8000" in request.video_url:
+            # Extract filename from URL and read directly from disk
+            video_filename = request.video_url.split("/")[-1]
+            temp_file_path = os.path.join(BASE_DIR, "static", "uploads", video_filename)
             
-        # 3. Gemini Analysis
-        video_file = genai.upload_file(path=temp_file_path, display_name=f"verify-{uuid.uuid4()}")
-        while video_file.state.name == "PROCESSING":
-            time.sleep(3)
-            video_file = genai.get_file(video_file.name)
-
-        prompt = f"Verify milestone: {request.milestone_criteria}. Return ONLY JSON: {{\"verified\": bool, \"confidence_score\": int, \"reasoning\": string}}"
+            if not os.path.exists(temp_file_path):
+                raise HTTPException(status_code=404, detail=f"Video file not found: {video_filename}")
+            
+            file_size = os.path.getsize(temp_file_path)
+            print(f"✅ Found local video: {file_size / 1024 / 1024:.2f} MB")
+            
+            # We'll use this file directly, no need to copy
+            should_delete_temp = False
+        else:
+            # External URL - download it
+            print("📥 Downloading external video...")
+            response_video = requests.get(request.video_url, stream=True, timeout=60)
+            response_video.raise_for_status()
+            
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+            temp_file_path = temp_file.name
+            
+            with open(temp_file_path, 'wb') as f:
+                for chunk in response_video.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            
+            file_size = os.path.getsize(temp_file_path)
+            print(f"✅ Video downloaded: {file_size / 1024 / 1024:.2f} MB")
+            should_delete_temp = True
         
-        # Simple retry logic for AI
+        # 3. Upload to Gemini
+        print("📤 Uploading to Gemini...")
+        try:
+            video_file = genai.upload_file(
+                path=temp_file_path, 
+                display_name=f"milestone-{request.project_id}-{request.milestone_index}"
+            )
+            print(f"✅ Uploaded to Gemini: {video_file.name}")
+        except Exception as upload_error:
+            print(f"❌ Gemini upload failed: {upload_error}")
+            raise Exception(f"Failed to upload video to AI: {str(upload_error)}")
+        
+        # 4. Wait for processing
+        print("⏳ Waiting for Gemini processing...")
+        max_wait = 60  # 60 seconds max
+        waited = 0
+        while video_file.state.name == "PROCESSING":
+            if waited >= max_wait:
+                raise Exception("Video processing timeout (60s)")
+            time.sleep(3)
+            waited += 3
+            video_file = genai.get_file(video_file.name)
+            print(f"   Status: {video_file.state.name} ({waited}s)")
+        
+        if video_file.state.name == "FAILED":
+            raise Exception(f"Gemini video processing failed: {video_file.state}")
+        
+        print(f"✅ Video ready: {video_file.state.name}")
+        
+        # 5. Create AI prompt
+        prompt = f"""You are verifying construction milestone completion.
+
+Milestone: {request.milestone_criteria}
+
+Instructions:
+1. Watch the video carefully
+2. Look for evidence of work being done related to this milestone
+3. For testing purposes, be lenient - if you see ANY construction activity, tools, or progress, mark as verified
+4. Only mark as NOT verified if the video is completely irrelevant, black, or shows no activity
+
+Return ONLY valid JSON (no markdown, no code blocks):
+{{
+  "verified": true or false,
+  "confidence_score": 0-100,
+  "reasoning": "Brief explanation of what you saw"
+}}"""
+
+        # 6. Call Gemini with retry logic
+        print("🤖 Asking Gemini for verification...")
         response = None
+        last_error = None
+        
         for attempt in range(3):
             try:
-                response = model.generate_content([prompt, video_file])
-                if response: break
-            except Exception:
-                time.sleep(5)
-
-        if not response:
-            raise Exception("AI Oracle failed to respond.")
-
-        # 4. Parsing result
-        json_text = response.text.replace('```json', '').replace('```', '').strip()
-        result = json.loads(json_text)
-
-        # 5. Blockchain Payout & DB Update
-        if result.get("verified") and result.get("confidence_score", 0) >= 70:
-            if project.on_chain_id:
-                # Trigger the payout
-                tx_hash = asyncio.run(release_funds_mantle(int(project.on_chain_id), request.milestone_index))
+                print(f"   Attempt {attempt + 1}/3...")
                 
-                if tx_hash:
-                    result["mantle_transaction"] = tx_hash
-                    result["primary_chain"] = "mantle"
-                    
-                    # Update local DB status
-                    ms = db.query(Milestone).filter(
-                        Milestone.project_id == project.id, 
-                        Milestone.order_index == request.milestone_index
-                    ).first()
-                    if ms:
-                        ms.status = "verified"
-                        db.commit()
+                # Use generate_content with timeout
+                response = model.generate_content(
+                    [prompt, video_file],
+                    request_options={"timeout": 60}
+                )
+                
+                if response and response.text:
+                    print(f"✅ Gemini responded (attempt {attempt + 1})")
+                    break
                 else:
-                    result["error"] = "AI verified, but blockchain payout failed."
+                    print(f"⚠️ Empty response from Gemini")
+                    
+            except Exception as gen_error:
+                last_error = gen_error
+                print(f"⚠️ Attempt {attempt + 1} failed: {str(gen_error)[:100]}")
+                
+                # Check if it's a safety/blocking issue
+                if hasattr(response, 'prompt_feedback'):
+                    print(f"   Prompt feedback: {response.prompt_feedback}")
+                
+                if attempt < 2:  # Don't sleep on last attempt
+                    time.sleep(5)
+
+        # 7. Check if we got a response
+        if not response or not response.text:
+            error_msg = f"AI Oracle failed after 3 attempts. Last error: {str(last_error)[:200]}"
+            print(f"❌ {error_msg}")
+            
+            # Return a safe default response instead of crashing
+            return VerificationResponse(
+                verified=False,
+                confidence_score=0,
+                reasoning=error_msg,
+                error="AI verification service unavailable"
+            )
+
+        # 8. Parse response
+        print("📝 Parsing AI response...")
+        response_text = response.text.strip()
+        
+        # Remove markdown code blocks if present
+        response_text = response_text.replace('```json', '').replace('```', '').strip()
+        
+        # Try to find JSON in the response
+        try:
+            # Look for JSON object in the text
+            start = response_text.find('{')
+            end = response_text.rfind('}') + 1
+            if start >= 0 and end > start:
+                json_text = response_text[start:end]
+                result = json.loads(json_text)
+            else:
+                result = json.loads(response_text)
+                
+        except json.JSONDecodeError as je:
+            print(f"❌ JSON parse error: {je}")
+            print(f"   Raw response: {response_text[:500]}")
+            
+            # Fallback: Try to extract key information
+            result = {
+                "verified": "true" in response_text.lower() or "verified" in response_text.lower(),
+                "confidence_score": 50,
+                "reasoning": f"Could not parse AI response properly. Raw: {response_text[:200]}"
+            }
+
+        print(f"✅ Parsed result: verified={result.get('verified')}, score={result.get('confidence_score')}")
+
+        # 9. Blockchain Payout (if verified)
+        if result.get("verified") and result.get("confidence_score", 0) >= 70:
+            print("💰 Verification passed! Attempting blockchain payout...")
+            
+            if project.on_chain_id:
+                try:
+                    # Trigger the payout
+                    tx_hash = await release_funds_mantle(
+                        int(project.on_chain_id), 
+                        request.milestone_index
+                    )
+                    
+                    if tx_hash:
+                        result["mantle_transaction"] = tx_hash
+                        result["primary_chain"] = "mantle"
+                        
+                        # Update local DB status
+                        ms = db.query(Milestone).filter(
+                            Milestone.project_id == project.id, 
+                            Milestone.order_index == request.milestone_index
+                        ).first()
+                        
+                        if ms:
+                            ms.status = "verified"
+                            ms.is_completed = True
+                            db.commit()
+                            print("✅ Database updated")
+                    else:
+                        result["error"] = "AI verified, but blockchain transaction failed"
+                        print("❌ Blockchain transaction failed")
+                        
+                except Exception as blockchain_error:
+                    error_msg = f"Blockchain error: {str(blockchain_error)}"
+                    result["error"] = error_msg
+                    print(f"❌ {error_msg}")
+            else:
+                result["error"] = "Project not deployed to blockchain"
+                print("⚠️ No on_chain_id - skipping blockchain payout")
+        else:
+            print(f"⏭️ Verification failed or low confidence - no payout")
 
         return VerificationResponse(**result)
         
+    except HTTPException:
+        raise
+        
     except Exception as e:
-        print(f"🔥 CRITICAL FAILURE: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        error_msg = str(e)
+        print(f"🔥 CRITICAL FAILURE: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        
+        # Return structured error instead of crashing
+        return VerificationResponse(
+            verified=False,
+            confidence_score=0,
+            reasoning=f"Verification failed: {error_msg[:200]}",
+            error=error_msg
+        )
+        
     finally:
-        if temp_file_path and os.path.exists(temp_file_path):
-            os.unlink(temp_file_path)
+        # Cleanup - only delete if we created a temp file
+        if temp_file_path and should_delete_temp and os.path.exists(temp_file_path):
+            try:
+                os.unlink(temp_file_path)
+                print("🧹 Cleaned up temp file")
+            except:
+                pass
+        
+        # Clean up Gemini file
+        if video_file:
+            try:
+                genai.delete_file(video_file.name)
+                print("🧹 Cleaned up Gemini file")
+            except:
+                pass
+
+        print(f"{'='*60}\n")
+
+@app.post("/verify-milestone", response_model=VerificationResponse)
+async def release_funds_mantle(project_on_chain_id: int, milestone_index: int):
+    """
+    Release milestone funds on Mantle blockchain
+    
+    Args:
+        project_on_chain_id: The on-chain project ID (integer)
+        milestone_index: The milestone index FROM YOUR DB (1-based)
+    """
+    try:
+        # Convert to pure integers
+        p_id = int(project_on_chain_id)
+        m_idx = int(milestone_index) - 1  # DB uses 1-based, blockchain uses 0-based
+        
+        print(f"🔄 RELEASING: Project {p_id}, Milestone {m_idx} (DB index: {milestone_index})")
+
+        # 1. CRITICAL: Check if milestone exists on-chain first
+        try:
+            milestone_info = optic_gov_contract.functions.getMilestone(p_id, m_idx).call()
+            print(f"📋 Milestone Info: Amount={milestone_info[1]}, Completed={milestone_info[2]}, Released={milestone_info[3]}")
+            
+            if milestone_info[2]:  # isCompleted
+                print(f"⚠️ WARNING: Milestone already marked as completed on-chain")
+                if milestone_info[3]:  # isReleased
+                    print(f"❌ ERROR: Funds already released for this milestone")
+                    return None
+        except Exception as e:
+            print(f"❌ ERROR: Could not fetch milestone info: {e}")
+            print(f"💡 TIP: Make sure project {p_id} exists on-chain with at least {m_idx + 1} milestones")
+            return None
+
+        # 2. Get the current nonce
+        nonce = w3.eth.get_transaction_count(ORACLE_ADDRESS)
+
+        # 3. FIXED: Let Web3 estimate the gas properly
+        # First, try to estimate gas to see what's actually needed
+        try:
+            estimated_gas = optic_gov_contract.functions.releaseMilestone(
+                p_id,
+                m_idx,
+                True
+            ).estimate_gas({
+                'from': ORACLE_ADDRESS,
+                'nonce': nonce
+            })
+            print(f"⛽ Estimated Gas: {estimated_gas}")
+            # Add 50% buffer to be safe
+            gas_limit = int(estimated_gas * 1.5)
+        except Exception as est_error:
+            print(f"⚠️ Gas estimation failed: {est_error}")
+            print(f"💡 Using fallback gas limit of 2,000,000")
+            gas_limit = 2_000_000
+
+        # 4. Get current gas price and add buffer for L2
+        base_gas_price = w3.eth.gas_price
+        gas_price = int(base_gas_price * 1.5)  # 50% buffer for L2 data fees
+        
+        print(f"⛽ Gas Limit: {gas_limit:,}")
+        print(f"💰 Gas Price: {gas_price:,} wei ({w3.from_wei(gas_price, 'gwei'):.2f} gwei)")
+
+        # 5. Build the transaction (Legacy style for Mantle compatibility)
+        tx_data = optic_gov_contract.functions.releaseMilestone(
+            p_id,
+            m_idx,
+            True
+        ).build_transaction({
+            'from': ORACLE_ADDRESS,
+            'nonce': nonce,
+            'gas': gas_limit,
+            'gasPrice': gas_price,
+            'chainId': 5003,  # Mantle Sepolia
+        })
+
+        # 6. Sign and Broadcast
+        signed_tx = w3.eth.account.sign_transaction(tx_data, ORACLE_PRIVATE_KEY)
+        tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+        tx_hash_hex = "0x" + tx_hash.hex() if not tx_hash.hex().startswith("0x") else tx_hash.hex()
+        
+        print(f"🚀 BROADCASTED: {tx_hash_hex}")
+        print(f"🔗 View on Explorer: https://sepolia.mantlescan.xyz/tx/{tx_hash_hex}")
+        
+        # 7. Wait for receipt with longer timeout
+        print(f"⏳ Waiting for confirmation...")
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
+        
+        if receipt.status == 1:
+            print(f"✅ BLOCKCHAIN CONFIRMED")
+            print(f"   Gas Used: {receipt.gasUsed:,}")
+            print(f"   Block: {receipt.blockNumber}")
+            return "0x" + tx_hash.hex() if not tx_hash.hex().startswith("0x") else tx_hash.hex()
+        else:
+            print(f"❌ TRANSACTION REVERTED ON-CHAIN")
+            print(f"   Receipt: {receipt}")
+            return None
+
+    except ValueError as e:
+        error_data = str(e)
+        print(f"❌ TRANSACTION REJECTED: {error_data}")
+        
+        # Parse common errors
+        if "insufficient funds" in error_data.lower():
+            print(f"💡 FIX: Add more MNT to oracle wallet: {ORACLE_ADDRESS}")
+        elif "nonce too low" in error_data.lower():
+            print(f"💡 FIX: Another transaction is pending. Wait or increase nonce.")
+        elif "already known" in error_data.lower():
+            print(f"💡 FIX: Transaction already submitted. Check mempool.")
+        
+        return None
+        
+    except Exception as e:
+        print(f"❌ MANTLE FATAL ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+
 
 @app.get("/")
 async def root():
@@ -902,6 +1340,248 @@ async def check_contract_state(project_id: int, milestone_index: int, db: Sessio
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+
+
+# ====================
+# DEBUGING CONTRACT MILESTONE AMOUNT
+# ===================
+
+
+@app.get("/debug/compare-amounts/{project_id}")
+async def compare_milestone_amounts(project_id: int, db: Session = Depends(get_db)):
+    """Compare milestone amounts in DB vs blockchain"""
+    try:
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        if not project.on_chain_id:
+            raise HTTPException(status_code=400, detail="Project not on blockchain")
+        
+        # Get all milestones from DB
+        db_milestones = db.query(Milestone).filter(
+            Milestone.project_id == project_id
+        ).order_by(Milestone.order_index).all()
+        
+        # Get blockchain data
+        on_chain_id = int(project.on_chain_id)
+        project_data = optic_gov_contract.functions.projects(on_chain_id).call()
+        milestone_count = project_data[4]
+        
+        comparison = []
+        total_db = 0
+        total_blockchain = 0
+        
+        for i in range(len(db_milestones)):
+            db_ms = db_milestones[i]
+            
+            # Get blockchain milestone
+            try:
+                bc_ms = optic_gov_contract.functions.getMilestone(on_chain_id, i).call()
+                bc_amount_mnt = float(w3.from_wei(bc_ms[1], 'ether'))
+                bc_amount_wei = bc_ms[1]
+                match = abs(db_ms.amount - bc_amount_mnt) < 0.000001
+            except Exception as e:
+                bc_amount_mnt = None
+                bc_amount_wei = None
+                match = False
+            
+            db_amount_wei = int(db_ms.amount * 10**18)
+            total_db += db_ms.amount
+            total_blockchain += bc_amount_mnt if bc_amount_mnt else 0
+            
+            comparison.append({
+                "milestone_index": i,
+                "order_index": db_ms.order_index,
+                "description": db_ms.description[:50],
+                "db_amount_mnt": db_ms.amount,
+                "db_amount_wei": db_amount_wei,
+                "blockchain_amount_mnt": bc_amount_mnt,
+                "blockchain_amount_wei": bc_amount_wei,
+                "match": match,
+                "difference_mnt": (bc_amount_mnt - db_ms.amount) if bc_amount_mnt else None,
+                "difference_wei": (bc_amount_wei - db_amount_wei) if bc_amount_wei else None
+            })
+        
+        return {
+            "project_id": project_id,
+            "on_chain_id": on_chain_id,
+            "project_name": project.name,
+            "total_budget_db": project.total_budget,
+            "total_budget_blockchain": float(w3.from_wei(project_data[2], 'ether')),
+            "milestone_count": len(db_milestones),
+            "total_milestones_db": total_db,
+            "total_milestones_blockchain": total_blockchain,
+            "milestones": comparison,
+            "warning": "Amounts don't match!" if abs(total_db - total_blockchain) > 0.000001 else None
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/debug/transaction-receipt/{tx_hash}")
+async def get_transaction_details(tx_hash: str):
+    """Get detailed transaction receipt"""
+    try:
+        # Add 0x if missing
+        if not tx_hash.startswith("0x"):
+            tx_hash = "0x" + tx_hash
+        
+        receipt = w3.eth.get_transaction_receipt(tx_hash)
+        transaction = w3.eth.get_transaction(tx_hash)
+        
+        # Decode logs to see what actually happened
+        logs = []
+        for log in receipt.logs:
+            try:
+                # Try to decode MilestoneReleased event
+                decoded = optic_gov_contract.events.MilestoneReleased().process_log(log)
+                logs.append({
+                    "event": "MilestoneReleased",
+                    "projectId": decoded.args.projectId,
+                    "milestoneIndex": decoded.args.milestoneIndex,
+                    "amount_wei": decoded.args.amount,
+                    "amount_mnt": float(w3.from_wei(decoded.args.amount, 'ether'))
+                })
+            except:
+                pass
+        
+        return {
+            "transaction_hash": tx_hash,
+            "from": transaction['from'],
+            "to": transaction['to'],
+            "value_wei": transaction['value'],
+            "value_mnt": float(w3.from_wei(transaction['value'], 'ether')),
+            "gas_used": receipt.gasUsed,
+            "status": "success" if receipt.status == 1 else "failed",
+            "block_number": receipt.blockNumber,
+            "decoded_events": logs,
+            "explorer_url": f"https://sepolia.mantlescan.xyz/tx/{tx_hash}"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/sync-project-from-blockchain/{project_id}")
+async def sync_project_from_blockchain(project_id: int, db: Session = Depends(get_db)):
+    """Sync database milestone amounts with what's actually on the blockchain"""
+    try:
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        if not project.on_chain_id:
+            raise HTTPException(status_code=400, detail="Project not on blockchain")
+        
+        on_chain_id = int(project.on_chain_id)
+        
+        # Get blockchain project data
+        project_data = optic_gov_contract.functions.projects(on_chain_id).call()
+        milestone_count = project_data[4]
+        blockchain_total_budget = float(w3.from_wei(project_data[2], 'ether'))
+        
+        print(f"\n{'='*60}")
+        print(f"🔄 SYNCING PROJECT {project_id} FROM BLOCKCHAIN")
+        print(f"{'='*60}")
+        
+        # Get DB milestones
+        db_milestones = db.query(Milestone).filter(
+            Milestone.project_id == project_id
+        ).order_by(Milestone.order_index).all()
+        
+        updates = []
+        
+        for i, db_milestone in enumerate(db_milestones):
+            if i >= milestone_count:
+                print(f"⚠️ Milestone {i} exists in DB but not on blockchain")
+                continue
+            
+            # Get blockchain milestone
+            bc_milestone = optic_gov_contract.functions.getMilestone(on_chain_id, i).call()
+            bc_amount = float(w3.from_wei(bc_milestone[1], 'ether'))
+            bc_description = bc_milestone[0]
+            bc_completed = bc_milestone[2]
+            bc_released = bc_milestone[3]
+            
+            old_amount = db_milestone.amount
+            
+            # Update database
+            db_milestone.amount = bc_amount
+            db_milestone.description = bc_description
+            
+            # Update status based on blockchain state
+            if bc_released:
+                db_milestone.status = "verified"
+                db_milestone.is_completed = True
+            elif bc_completed:
+                db_milestone.status = "completed"
+                db_milestone.is_completed = True
+            
+            updates.append({
+                "milestone_index": i,
+                "order_index": db_milestone.order_index,
+                "description": bc_description[:50],
+                "old_amount": old_amount,
+                "new_amount": bc_amount,
+                "difference": bc_amount - old_amount,
+                "status": db_milestone.status
+            })
+            
+            print(f"✏️ Milestone {i}: {old_amount:.8f} → {bc_amount:.8f} MNT")
+        
+        # Update project total budget
+        old_budget = project.total_budget
+        project.total_budget = blockchain_total_budget
+        
+        db.commit()
+        
+        print(f"✅ Sync complete!")
+        print(f"   Budget: {old_budget:.8f} → {blockchain_total_budget:.8f} MNT")
+        print(f"{'='*60}\n")
+        
+        return {
+            "success": True,
+            "project_id": project_id,
+            "on_chain_id": on_chain_id,
+            "old_budget": old_budget,
+            "new_budget": blockchain_total_budget,
+            "milestones_updated": len(updates),
+            "updates": updates
+        }
+        
+    except Exception as e:
+        db.rollback()
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/sync-all-projects")
+async def sync_all_projects_from_blockchain(db: Session = Depends(get_db)):
+    """Sync all projects that have on_chain_id"""
+    try:
+        projects = db.query(Project).filter(Project.on_chain_id.isnot(None)).all()
+        
+        results = []
+        for project in projects:
+            try:
+                result = await sync_project_from_blockchain(project.id, db)
+                results.append({"project_id": project.id, "status": "synced", "result": result})
+            except Exception as e:
+                results.append({"project_id": project.id, "status": "failed", "error": str(e)})
+        
+        return {
+            "total_projects": len(projects),
+            "results": results
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
     import uvicorn

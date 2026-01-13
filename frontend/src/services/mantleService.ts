@@ -2,7 +2,7 @@ import { ethers } from 'ethers';
 
 const MANTLE_CHAIN_ID = 5003;
 const MANTLE_RPC_URL = 'https://rpc.sepolia.mantle.xyz';
-const CONTRACT_ADDRESS = '0x25b4C5e58BdF3124095aD925fd480eD5D17e9e64';
+const CONTRACT_ADDRESS = '0x5B177FF2F5c17a753b9C0e381268E8908fFD178E';
 
 const CONTRACT_ABI = [
   "function createProject(address _contractor, uint256[] calldata _milestoneAmounts, string[] calldata _milestoneDescriptions) external payable returns (uint256)",
