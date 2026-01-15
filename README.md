@@ -457,19 +457,6 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 
 ---
 
-## 📄 License
-
-This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
-
----
-
-## 👥 Team
-
-- **Raufu Abdulrahman** - Full Stack Developer & Blockchain Engineer
-- **Contributors** - See [CONTRIBUTORS.md](CONTRIBUTORS.md)
-
----
-
 ## 🙏 Acknowledgments
 
 - [Mantle Network](https://mantle.xyz) - L2 blockchain infrastructure
